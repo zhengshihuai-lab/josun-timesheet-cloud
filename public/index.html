@@ -46,6 +46,18 @@ body{font-family:'DM Sans','Noto Sans TC',sans-serif;background:var(--bg);color:
 .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
+/* Department Selector */
+.dept-selector{display:flex;gap:3px;background:var(--surface2);padding:3px;border-radius:10px;border:1px solid var(--border)}
+.dept-btn{padding:6px 16px;border-radius:7px;border:none;background:transparent;color:var(--text3);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .25s;white-space:nowrap;position:relative}
+.dept-btn:hover{color:var(--text2);background:var(--surface3)}
+.dept-btn.active{color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.dept-btn.active[data-dept="all"]{background:linear-gradient(135deg,var(--josun),var(--blue))}
+.dept-btn.active[data-dept="SI"]{background:var(--josun)}
+.dept-btn.active[data-dept="SE"]{background:var(--blue)}
+.dept-btn.active[data-dept="AC"]{background:var(--purple)}
+.dept-btn .dept-count{font-size:9px;opacity:.7;margin-left:4px}
+.dept-divider{width:1px;background:var(--border);margin:4px 2px}
+
 /* ===== Content ===== */
 .content{padding:24px 32px;max-width:1500px}
 
@@ -219,6 +231,13 @@ body{font-family:'DM Sans','Noto Sans TC',sans-serif;background:var(--bg);color:
     <div class="top-bar">
       <h1><span>JOSUN</span> 工時智慧分析平台</h1>
       <div class="top-right">
+        <div class="dept-selector" id="deptSelector">
+          <button class="dept-btn active" data-dept="all" onclick="setDepartment('all')">全部部門</button>
+          <div class="dept-divider"></div>
+          <button class="dept-btn" data-dept="SI" onclick="setDepartment('SI')">系統集成部</button>
+          <button class="dept-btn" data-dept="SE" onclick="setDepartment('SE')">系統工程部</button>
+          <button class="dept-btn" data-dept="AC" onclick="setDepartment('AC')">自動控制部</button>
+        </div>
         <div class="week-selector" id="weekSelector"></div>
         <div class="sync-status"><div class="sync-dot"></div><span id="syncLabel">已就緒</span></div>
       </div>
@@ -249,6 +268,11 @@ body{font-family:'DM Sans','Noto Sans TC',sans-serif;background:var(--bg);color:
             <div class="kpi-value" id="kpiRisks">0<span class="kpi-unit">項</span></div>
             <div class="kpi-sub"><span id="kpiRiskDetail">—</span></div>
           </div>
+        </div>
+
+        <!-- Department Overview (visible when "全部部門" selected) -->
+        <div id="deptOverview" class="animate-in" style="margin-bottom:24px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px" id="deptCards"></div>
         </div>
 
         <!-- Charts Row -->
@@ -359,6 +383,27 @@ body{font-family:'DM Sans','Noto Sans TC',sans-serif;background:var(--bg);color:
               <button class="week-btn" onclick="setForecast(4)">+4週</button>
               <button class="week-btn" onclick="setForecast(8)">+8週</button>
             </div>
+          </div>
+        </div>
+
+        <!-- Department Proportion Chart -->
+        <div class="grid grid-3 animate-in" style="margin-bottom:16px">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title"><div class="dot" style="background:var(--josun)"></div>部門工時佔比</div>
+              <div class="card-badge" id="deptPropBadge">本週</div>
+            </div>
+            <div class="card-body" style="display:flex;align-items:center;gap:16px">
+              <div style="width:160px;height:160px;flex-shrink:0"><canvas id="deptPropChart"></canvas></div>
+              <div id="deptPropLegend" style="flex:1;font-size:12px"></div>
+            </div>
+          </div>
+          <div class="card" style="grid-column:span 2">
+            <div class="card-head">
+              <div class="card-title"><div class="dot" style="background:var(--blue)"></div>部門人均工時對比</div>
+              <div class="card-badge" id="deptAvgBadge">本週</div>
+            </div>
+            <div class="card-body"><div class="chart-wrap" style="height:180px"><canvas id="deptAvgChart"></canvas></div></div>
           </div>
         </div>
 
@@ -511,6 +556,13 @@ const EMPLOYEES = ['萌萌','小熊','蒙海','羅潔','Marin','廖嘉良','天�
 const WEEKS = ['W19','W20','W21','W22','W23','W24','W25'];
 const WEEK_DATES = {W19:'5/5~5/9',W20:'5/12~5/16',W21:'5/19~5/23',W22:'5/26~5/30',W23:'6/2~6/8',W24:'6/9~6/15',W25:'6/16~6/22'};
 
+const DEPARTMENTS = {
+  all: { name: '全部部門', employees: EMPLOYEES, color: '#19B08F' },
+  SI:  { name: '系統集成部', employees: ['萌萌','小熊','蒙海','羅潔','Marin','廖嘉良','天舒','雪可','馨蕊','慧婷','宇捷','秉睿','實習生','王笑一','裴文'], color: '#19B08F' },
+  SE:  { name: '系統工程部', employees: [], color: '#1EAAE0' },
+  AC:  { name: '自動控制部', employees: ['劉彥儒','王一青'], color: '#7C5CFC' },
+};
+
 const TS = {
 W19:{萌萌:{行政事務:2,內部溝通:6,專案管理:16,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:5,出差考察:7,突發狀況:2},小熊:{行政事務:2,內部溝通:4,專案管理:0,前端開發:24,後端開發:0,系統整合:0,圖控開發:0,設計規劃:3,客戶接洽:0,出差考察:0,突發狀況:7},蒙海:{行政事務:0,內部溝通:4,專案管理:0,前端開發:0,後端開發:20,系統整合:12,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:6},羅潔:{行政事務:0,內部溝通:4,專案管理:4,前端開發:0,後端開發:0,系統整合:18,圖控開發:0,設計規劃:0,客戶接洽:4,出差考察:6,突發狀況:4},Marin:{行政事務:2,內部溝通:4,專案管理:0,前端開發:0,後端開發:0,系統整合:0,圖控開發:18,設計規劃:5,客戶接洽:0,出差考察:3,突發狀況:4},廖嘉良:{行政事務:2,內部溝通:6,專案管理:10,前端開發:3,後端開發:4,系統整合:2,圖控開發:3,設計規劃:1,客戶接洽:4,出差考察:3,突發狀況:2},天舒:{行政事務:2,內部溝通:4,專案管理:6,前端開發:4,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:0},雪可:{行政事務:2,內部溝通:4,專案管理:8,前端開發:0,後端開發:0,系統整合:6,圖控開發:0,設計規劃:0,客戶接洽:4,出差考察:6,突發狀況:3},馨蕊:{行政事務:2,內部溝通:6,專案管理:4,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:8,客戶接洽:3,出差考察:0,突發狀況:0},慧婷:{行政事務:2,內部溝通:6,專案管理:4,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:6,客戶接洽:4,出差考察:0,突發狀況:0},宇捷:{行政事務:2,內部溝通:4,專案管理:6,前端開發:0,後端開發:4,系統整合:4,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:0},秉睿:{行政事務:2,內部溝通:4,專案管理:0,前端開發:0,後端開發:0,系統整合:8,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:2}},
 W23:{萌萌:{行政事務:2,內部溝通:7,專案管理:17,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:4,出差考察:8,突發狀況:2},小熊:{行政事務:2,內部溝通:5,專案管理:0,前端開發:25,後端開發:0,系統整合:0,圖控開發:0,設計規劃:4,客戶接洽:0,出差考察:0,突發狀況:3},蒙海:{行政事務:0,內部溝通:4,專案管理:0,前端開發:0,後端開發:18,系統整合:14,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:6},羅潔:{行政事務:0,內部溝通:5,專案管理:4,前端開發:0,後端開發:0,系統整合:16,圖控開發:0,設計規劃:0,客戶接洽:5,出差考察:6,突發狀況:4},Marin:{行政事務:2,內部溝通:6,專案管理:0,前端開發:0,後端開發:0,系統整合:0,圖控開發:16,設計規劃:6,客戶接洽:0,出差考察:4,突發狀況:4},廖嘉良:{行政事務:2,內部溝通:5,專案管理:11,前端開發:4,後端開發:3,系統整合:2,圖控開發:2,設計規劃:1,客戶接洽:5,出差考察:4,突發狀況:1},天舒:{行政事務:1,內部溝通:3,專案管理:6,前端開發:3,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:1},雪可:{行政事務:2,內部溝通:5,專案管理:9,前端開發:0,後端開發:0,系統整合:5,圖控開發:0,設計規劃:0,客戶接洽:5,出差考察:4,突發狀況:2},馨蕊:{行政事務:2,內部溝通:5,專案管理:3,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:10,客戶接洽:3,出差考察:0,突發狀況:0},慧婷:{行政事務:1,內部溝通:7,專案管理:5,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:7,客戶接洽:3,出差考察:0,突發狀況:1},宇捷:{行政事務:2,內部溝通:3,專案管理:7,前端開發:0,後端開發:5,系統整合:3,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:0},秉睿:{行政事務:2,內部溝通:5,專案管理:0,前端開發:0,後端開發:0,系統整合:9,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:1},實習生:{行政事務:3,內部溝通:3,專案管理:2,前端開發:5,後端開發:0,系統整合:0,圖控開發:0,設計規劃:5,客戶接洽:0,出差考察:0,突發狀況:2},王笑一:{行政事務:2,內部溝通:3,專案管理:2,前端開發:0,後端開發:0,系統整合:2,圖控開發:0,設計規劃:0,客戶接洽:1,出差考察:0,突發狀況:0},裴文:{行政事務:1,內部溝通:2,專案管理:2,前端開發:0,後端開發:0,系統整合:2,圖控開發:0,設計規劃:0,客戶接洽:1,出差考察:0,突發狀況:0},劉彥儒:{行政事務:2,內部溝通:4,專案管理:6,自控系統設計:8,PLC程式開發:6,DDC控制器開發:3,圖控與人機介面:2,現場施工與調試:5,儀電工程:0,客戶接洽:2,出差考察:0,突發狀況:1},王一青:{行政事務:1,內部溝通:3,專案管理:4,自控系統設計:6,PLC程式開發:8,DDC控制器開發:4,圖控與人機介面:3,現場施工與調試:4,儀電工程:0,客戶接洽:1,出差考察:0,突發狀況:0}},
@@ -550,18 +602,23 @@ const RISKS = [
 
 // ===== STATE =====
 let currentWeek = 'W25';
+let currentDept = 'all';
 let charts = {};
 
 // ===== HELPERS =====
+function getActiveEmployees() {
+  return DEPARTMENTS[currentDept].employees;
+}
+
 function empTotal(week, emp) {
   const d = TS[week]?.[emp]; if(!d) return 0;
   return CATS.reduce((s,c) => s + (d[c]||0), 0);
 }
 function weekTotal(week) {
-  return EMPLOYEES.reduce((s,e) => s + empTotal(week,e), 0);
+  return getActiveEmployees().reduce((s,e) => s + empTotal(week,e), 0);
 }
 function catTotal(week, cat) {
-  return EMPLOYEES.reduce((s,e) => s + ((TS[week]?.[e]?.[cat])||0), 0);
+  return getActiveEmployees().reduce((s,e) => s + ((TS[week]?.[e]?.[cat])||0), 0);
 }
 function natureTotal(week, nature) {
   const cats = NATURE[nature]||[];
@@ -570,6 +627,14 @@ function natureTotal(week, nature) {
 function heatLevel(h) {
   if(h===0) return 'h0'; if(h<=2) return 'h1'; if(h<=4) return 'h2';
   if(h<=6) return 'h3'; if(h<=8) return 'h4'; if(h<=10) return 'h5'; return 'h6';
+}
+
+function setDepartment(dept) {
+  currentDept = dept;
+  document.querySelectorAll('.dept-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.dept === dept);
+  });
+  renderAll();
 }
 
 // ===== RENDER =====
@@ -585,7 +650,7 @@ function switchWeek(w) {
 
 function renderKPIs() {
   const total = weekTotal(currentWeek);
-  const activeEmps = EMPLOYEES.filter(e => empTotal(currentWeek,e) > 0).length;
+  const activeEmps = getActiveEmployees().filter(e => empTotal(currentWeek,e) > 0).length;
   const avg = activeEmps ? (total / activeEmps).toFixed(1) : 0;
   const coreHrs = natureTotal(currentWeek, '核心開發');
   const coreRatio = total ? ((coreHrs/total)*100).toFixed(0) : 0;
@@ -626,7 +691,7 @@ function renderWeeklyTrend() {
   const ctx = document.getElementById('weeklyTrendChart').getContext('2d');
   if (charts.weeklyTrend) charts.weeklyTrend.destroy();
 
-  const activeEmps = EMPLOYEES.filter(e => EMPLOYEES.indexOf(e) < 6);
+  const activeEmps = getActiveEmployees().filter(e => empTotal(currentWeek, e) > 0).slice(0, 6);
   const datasets = activeEmps.map((emp, i) => ({
     label: emp,
     data: WEEKS.map(w => empTotal(w, emp)),
@@ -685,7 +750,8 @@ function renderHeatmap() {
   const container = document.getElementById('heatmapContainer');
   const hData = HEATMAP[currentWeek] || HEATMAP['W22'];
   const days = ['週一','週二','週三','週四','週五'];
-  const emps = Object.keys(hData);
+  const deptEmps = new Set(getActiveEmployees());
+  const emps = Object.keys(hData).filter(e => deptEmps.has(e));
 
   let html = '<table class="heatmap"><thead><tr><th class="name-col">員工</th>';
   days.forEach(d => html += `<th>${d}</th>`);
@@ -704,7 +770,7 @@ function renderHeatmap() {
   });
   html += '</tbody></table>';
   container.innerHTML = html;
-  document.getElementById('heatBadge').textContent = currentWeek;
+  document.getElementById('heatBadge').textContent = DEPARTMENTS[currentDept].name + ' · ' + currentWeek;
 }
 
 function renderBurnRate() {
@@ -737,7 +803,7 @@ function renderEmpBar() {
   const ctx = document.getElementById('empBarChart').getContext('2d');
   if (charts.empBar) charts.empBar.destroy();
 
-  const emps = EMPLOYEES.filter(e => empTotal(currentWeek,e) > 0);
+  const emps = getActiveEmployees().filter(e => empTotal(currentWeek,e) > 0);
   const data = emps.map(e => empTotal(currentWeek,e));
 
   charts.empBar = new Chart(ctx, {
@@ -760,7 +826,7 @@ function renderEmpBar() {
 
 function renderEmpGrid() {
   const el = document.getElementById('empGrid');
-  const activeEmps = EMPLOYEES.filter(e => empTotal(currentWeek,e) > 0);
+  const activeEmps = getActiveEmployees().filter(e => empTotal(currentWeek,e) > 0);
   document.getElementById('empCountBadge').textContent = activeEmps.length + ' 人';
 
   el.innerHTML = activeEmps.map(emp => {
@@ -886,7 +952,7 @@ function simulateSync() {
   addLog('HmacSHA256 認證 ... Token: ********6f6c7a (模擬)', 'ok');
   addLog(`讀取 WeCom 工時數據: ${currentWeek} ...`, 'ok');
 
-  const activeEmps = EMPLOYEES.filter(e => empTotal(currentWeek,e) > 0);
+  const activeEmps = getActiveEmployees().filter(e => empTotal(currentWeek,e) > 0);
   let totalRecords = 0;
 
   setTimeout(() => {
@@ -921,8 +987,8 @@ function validateMapping() {
   log.innerHTML = '';
   addLog('=== 映射驗證開始 ===', 'ok');
 
-  const unmappedEmps = EMPLOYEES.filter(e => !document.querySelector(`[data-emp="${e}"]`));
-  addLog(`員工映射: ${EMPLOYEES.length} 人 → YonSuite ID 待配置`, 'warn');
+  const unmappedEmps = getActiveEmployees().filter(e => !document.querySelector(`[data-emp="${e}"]`));
+  addLog(`員工映射: ${getActiveEmployees().length} 人（${DEPARTMENTS[currentDept].name}）→ YonSuite ID 待配置`, 'warn');
   addLog(`客戶/專案映射: ${BURN_DATA.length} 個專案 → YonSuite 專案編碼待配置`, 'warn');
   addLog(`任務分類映射: ${CATS.length} 個分類 → YonSuite 活動名稱待確認`, 'warn');
   addLog('WeCom → YonSuite 欄位對應表: 已配置', 'ok');
@@ -1015,8 +1081,8 @@ function toggleEmpFilter(emp) {
 
 function renderEmpFilterChips() {
   const el = document.getElementById('empFilterChips');
-  const activeEmps = EMPLOYEES.filter(e => empTotal(WEEKS[WEEKS.length-1], e) > 0 || empTotal(WEEKS[WEEKS.length-2], e) > 0);
-  el.innerHTML = `<div class="cat-chip" style="cursor:pointer;${selectedEmps.size===activeEmps.length?'background:var(--josun);color:#fff;border-color:var(--josun)':''}" onclick="selectedEmps=new Set(EMPLOYEES);renderEmpFilterChips();renderTrendForecast()">全選</div>` +
+  const activeEmps = getActiveEmployees().filter(e => empTotal(WEEKS[WEEKS.length-1], e) > 0 || empTotal(WEEKS[WEEKS.length-2], e) > 0);
+  el.innerHTML = `<div class="cat-chip" style="cursor:pointer;${selectedEmps.size===activeEmps.length?'background:var(--josun);color:#fff;border-color:var(--josun)':''}" onclick="selectedEmps=new Set(getActiveEmployees());renderEmpFilterChips();renderTrendForecast()">全選</div>` +
     activeEmps.map(e => {
       const active = selectedEmps.has(e);
       return `<div class="cat-chip" style="cursor:pointer;${active?'background:var(--surface3);color:var(--text);border-color:var(--border2)':''}" onclick="toggleEmpFilter('${e}')">${e}</div>`;
@@ -1041,7 +1107,7 @@ function renderTrendForecast() {
 
   const periodData = getPeriodData();
   const labels = getPeriodLabels();
-  const activeEmps = EMPLOYEES.filter(e => selectedEmps.has(e));
+  const activeEmps = getActiveEmployees().filter(e => selectedEmps.has(e));
 
   // Build historical data
   const datasets = [];
@@ -1113,9 +1179,9 @@ function renderDeptTrend() {
   const periodData = getPeriodData();
   const labels = getPeriodLabels();
 
-  // SI employees (original 16) vs AC employees (劉彥儒, 王一青)
-  const siEmps = EMPLOYEES.filter(e => !['劉彥儒','王一青'].includes(e));
-  const acEmps = ['劉彥儒','王一青'];
+  // SI employees vs AC employees — always show all departments for comparison
+  const siEmps = DEPARTMENTS.SI.employees;
+  const acEmps = DEPARTMENTS.AC.employees;
 
   const siData = labels.map(p => {
     return siEmps.reduce((s, e) => {
@@ -1203,7 +1269,7 @@ function renderUtilDist() {
   const ctx = document.getElementById('utilDistChart').getContext('2d');
   if (charts.utilDist) charts.utilDist.destroy();
 
-  const activeEmps = EMPLOYEES.filter(e => empTotal(WEEKS[WEEKS.length-1], e) > 0);
+  const activeEmps = getActiveEmployees().filter(e => empTotal(WEEKS[WEEKS.length-1], e) > 0);
   const utils = activeEmps.map(e => Math.round((empTotal(WEEKS[WEEKS.length-1], e) / 40) * 100));
 
   // Bucket into ranges
@@ -1239,7 +1305,7 @@ function generateSuggestions() {
   const suggestions = [];
   const lastWeek = WEEKS[WEEKS.length - 1];
   const prevWeek = WEEKS[WEEKS.length - 2];
-  const activeEmps = EMPLOYEES.filter(e => empTotal(lastWeek, e) > 0);
+  const activeEmps = getActiveEmployees().filter(e => empTotal(lastWeek, e) > 0);
 
   // 1. Workload imbalance
   const totals = activeEmps.map(e => ({ name: e, hrs: empTotal(lastWeek, e) }));
@@ -1372,7 +1438,7 @@ function generateSuggestions() {
 function renderSummaryTable() {
   const periodData = getPeriodData();
   const labels = getPeriodLabels();
-  const activeEmps = EMPLOYEES.filter(e => {
+  const activeEmps = getActiveEmployees().filter(e => {
     return WEEKS.some(w => empTotal(w, e) > 0);
   });
 
@@ -1428,7 +1494,168 @@ function renderSummaryTable() {
   </tr>`;
 }
 
+// ===== DEPARTMENT OVERVIEW & COMPARISON =====
+function renderDeptOverview() {
+  const el = document.getElementById('deptCards');
+  const overview = document.getElementById('deptOverview');
+
+  // Only show when viewing all departments
+  if (currentDept !== 'all') {
+    overview.style.display = 'none';
+    return;
+  }
+  overview.style.display = 'block';
+
+  const depts = [
+    { key: 'SI', name: '系統集成部', icon: '🔧', color: '#19B08F' },
+    { key: 'SE', name: '系統工程部', icon: '⚙️', color: '#1EAAE0' },
+    { key: 'AC', name: '自動控制部', icon: '🏗️', color: '#7C5CFC' },
+  ];
+
+  el.innerHTML = depts.map(d => {
+    const emps = DEPARTMENTS[d.key].employees;
+    const activeCount = emps.filter(e => empTotal(currentWeek, e) > 0).length;
+    const totalHrs = emps.reduce((s, e) => s + empTotal(currentWeek, e), 0);
+    const avgHrs = activeCount ? (totalHrs / activeCount).toFixed(1) : '—';
+    const coreHrs = NATURE['核心開發'].reduce((s, c) => {
+      return s + emps.reduce((a, e) => a + ((TS[currentWeek]?.[e]?.[c]) || 0), 0);
+    }, 0);
+    const coreRatio = totalHrs ? ((coreHrs / totalHrs) * 100).toFixed(0) : 0;
+
+    // Week-over-week change
+    const prevIdx = WEEKS.indexOf(currentWeek) - 1;
+    let delta = '—';
+    let deltaClass = '';
+    if (prevIdx >= 0) {
+      const prevTotal = emps.reduce((s, e) => s + empTotal(WEEKS[prevIdx], e), 0);
+      if (prevTotal > 0) {
+        const pct = (((totalHrs - prevTotal) / prevTotal) * 100).toFixed(1);
+        delta = (pct >= 0 ? '+' : '') + pct + '%';
+        deltaClass = pct >= 0 ? 'c-ok' : 'c-danger';
+      }
+    }
+
+    return `<div class="card" style="cursor:pointer;border-top:3px solid ${d.color}" onclick="setDepartment('${d.key}')">
+      <div style="padding:16px 18px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span style="font-size:13px;font-weight:700">${d.icon} ${d.name}</span>
+          <span class="card-badge">${activeCount} 人</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+          <div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:${d.color}">${totalHrs}</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:2px">總工時</div>
+          </div>
+          <div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700">${avgHrs}</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:2px">人均</div>
+          </div>
+          <div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700">${coreRatio}%</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:2px">核心佔比</div>
+          </div>
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:var(--text3);text-align:right">
+          vs 上週 <span class="${deltaClass}" style="font-weight:600">${delta}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderDeptProportion() {
+  const ctx = document.getElementById('deptPropChart').getContext('2d');
+  if (charts.deptProp) charts.deptProp.destroy();
+
+  const depts = [
+    { key: 'SI', name: '系統集成部', color: '#19B08F' },
+    { key: 'SE', name: '系統工程部', color: '#1EAAE0' },
+    { key: 'AC', name: '自動控制部', color: '#7C5CFC' },
+  ];
+
+  const totals = depts.map(d =>
+    DEPARTMENTS[d.key].employees.reduce((s, e) => s + empTotal(currentWeek, e), 0)
+  );
+  const grandTotal = totals.reduce((a, b) => a + b, 0);
+
+  charts.deptProp = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: depts.map(d => d.name),
+      datasets: [{ data: totals, backgroundColor: depts.map(d => d.color + 'CC'), borderWidth: 0, hoverOffset: 6 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '60%',
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  // Legend
+  document.getElementById('deptPropLegend').innerHTML = depts.map((d, i) => {
+    const pct = grandTotal ? ((totals[i] / grandTotal) * 100).toFixed(1) : 0;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+      <div style="width:10px;height:10px;border-radius:3px;background:${d.color};flex-shrink:0"></div>
+      <span style="flex:1;color:var(--text2)">${d.name}</span>
+      <span style="font-family:'JetBrains Mono',monospace;font-weight:600">${totals[i]}h</span>
+      <span style="color:var(--text3);width:40px;text-align:right">${pct}%</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('deptPropBadge').textContent = currentWeek;
+}
+
+function renderDeptAvgChart() {
+  const ctx = document.getElementById('deptAvgChart').getContext('2d');
+  if (charts.deptAvg) charts.deptAvg.destroy();
+
+  const depts = [
+    { key: 'SI', name: '系統集成部', color: '#19B08F' },
+    { key: 'SE', name: '系統工程部', color: '#1EAAE0' },
+    { key: 'AC', name: '自動控制部', color: '#7C5CFC' },
+  ];
+
+  const datasets = depts.map(d => ({
+    label: d.name,
+    data: WEEKS.map(w => {
+      const emps = DEPARTMENTS[d.key].employees;
+      const active = emps.filter(e => empTotal(w, e) > 0).length;
+      const total = emps.reduce((s, e) => s + empTotal(w, e), 0);
+      return active ? Math.round(total / active * 10) / 10 : 0;
+    }),
+    borderColor: d.color,
+    backgroundColor: d.color + '15',
+    borderWidth: 2, pointRadius: 4, pointHoverRadius: 6,
+    tension: 0.3, fill: true
+  }));
+
+  // Add baseline reference line
+  datasets.push({
+    label: '基準 (40hr)',
+    data: WEEKS.map(() => 40),
+    borderColor: '#5E6E8580',
+    borderWidth: 1, borderDash: [6, 4],
+    pointRadius: 0, fill: false
+  });
+
+  charts.deptAvg = new Chart(ctx, {
+    type: 'line',
+    data: { labels: WEEKS, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'bottom', labels: { color: '#95A3B8', font: { size: 10 }, boxWidth: 10, padding: 8 } } },
+      scales: {
+        x: { grid: { color: '#232D4020' }, ticks: { color: '#5E6E85', font: { size: 10 } } },
+        y: { grid: { color: '#232D4030' }, ticks: { color: '#5E6E85', font: { size: 10 } }, beginAtZero: true, max: 55 }
+      }
+    }
+  });
+  document.getElementById('deptAvgBadge').textContent = currentWeek;
+}
+
 function renderTrends() {
+  renderDeptProportion();
+  renderDeptAvgChart();
   renderEmpFilterChips();
   renderTrendForecast();
   renderDeptTrend();
@@ -1442,6 +1669,7 @@ function renderTrends() {
 function renderAll() {
   renderWeekSelector();
   renderKPIs();
+  renderDeptOverview();
   renderWeeklyTrend();
   renderCatDonut();
   renderHeatmap();
