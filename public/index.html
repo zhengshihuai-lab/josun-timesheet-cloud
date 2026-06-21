@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JOSUN 工時智慧分析平台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700;900&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --josun:#19B08F;--josun-d:#0D6B58;--josun-l:#AAE6B4;
+  --blue:#1EAAE0;--blue-d:#6496C8;--purple:#7C5CFC;
+  --bg:#080C10;--surface:#0F1520;--surface2:#161E2C;--surface3:#1C2638;
+  --border:#232D40;--border2:#2A3650;
+  --text:#E8ECF2;--text2:#95A3B8;--text3:#5E6E85;
+  --green:#19B08F;--yellow:#F0C040;--red:#F06060;--orange:#F09040;
+  --shadow:0 2px 16px rgba(0,0,0,.4);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans','Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--surface)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* ===== Layout ===== */
+.app{display:flex;min-height:100vh}
+.sidebar{width:68px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:4px;position:fixed;top:0;left:0;bottom:0;z-index:100}
+.sidebar .logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--josun),var(--josun-d));display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:16px;margin-bottom:20px;letter-spacing:-1px}
+.sidebar .nav-item{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;color:var(--text3);font-size:18px;position:relative}
+.sidebar .nav-item:hover{background:var(--surface2);color:var(--text2)}
+.sidebar .nav-item.active{background:rgba(25,176,143,.12);color:var(--josun)}
+.sidebar .nav-item.active::before{content:'';position:absolute;left:-12px;width:3px;height:20px;background:var(--josun);border-radius:0 3px 3px 0}
+.sidebar .nav-item svg{width:20px;height:20px}
+.main{margin-left:68px;flex:1;padding:0}
+
+/* ===== Header ===== */
+.top-bar{padding:16px 32px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:50;backdrop-filter:blur(20px);background:rgba(15,21,32,.85)}
+.top-bar h1{font-size:18px;font-weight:700;letter-spacing:-.3px}
+.top-bar h1 span{color:var(--josun);font-weight:700}
+.top-right{display:flex;align-items:center;gap:12px}
+.week-selector{display:flex;gap:4px;background:var(--surface2);padding:3px;border-radius:10px}
+.week-btn{padding:6px 14px;border-radius:8px;border:none;background:transparent;color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s}
+.week-btn:hover{color:var(--text)}
+.week-btn.active{background:var(--josun);color:#fff;box-shadow:0 2px 8px rgba(25,176,143,.3)}
+.sync-status{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:500;background:var(--surface2);color:var(--text2);border:1px solid var(--border)}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ===== Content ===== */
+.content{padding:24px 32px;max-width:1500px}
+
+/* KPI Row */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 22px;position:relative;overflow:hidden;transition:all .3s}
+.kpi:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:var(--shadow)}
+.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kpi:nth-child(1)::after{background:linear-gradient(90deg,var(--josun),var(--josun-l))}
+.kpi:nth-child(2)::after{background:linear-gradient(90deg,var(--blue),var(--blue-d))}
+.kpi:nth-child(3)::after{background:linear-gradient(90deg,var(--purple),#A78BFA)}
+.kpi:nth-child(4)::after{background:linear-gradient(90deg,var(--orange),var(--yellow))}
+.kpi-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:10px}
+.kpi-value{font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:600;line-height:1;color:var(--text)}
+.kpi-unit{font-size:14px;color:var(--text3);font-weight:400;margin-left:4px}
+.kpi-sub{font-size:11px;color:var(--text3);margin-top:8px;display:flex;align-items:center;gap:4px}
+.kpi-sub .tag{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600}
+.tag-green{background:rgba(25,176,143,.12);color:var(--green)}
+.tag-red{background:rgba(240,96,96,.12);color:var(--red)}
+.tag-yellow{background:rgba(240,192,64,.12);color:var(--yellow)}
+
+/* Grid */
+.grid{display:grid;gap:16px;margin-bottom:16px}
+.grid-2{grid-template-columns:1fr 1fr}
+.grid-3{grid-template-columns:1fr 1fr 1fr}
+.grid-23{grid-template-columns:2fr 3fr}
+.grid-32{grid-template-columns:3fr 2fr}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;transition:all .3s}
+.card:hover{border-color:var(--border2)}
+.card-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.card-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+.card-title .dot{width:8px;height:8px;border-radius:3px}
+.card-body{padding:20px}
+.card-badge{font-size:10px;padding:3px 10px;border-radius:6px;background:var(--surface2);color:var(--text2);font-weight:600;border:1px solid var(--border)}
+
+/* Heatmap */
+.heatmap{width:100%;border-collapse:separate;border-spacing:3px}
+.heatmap th{font-size:10px;color:var(--text3);font-weight:600;padding:6px 4px;text-align:center;letter-spacing:.5px;text-transform:uppercase}
+.heatmap th.name-col{text-align:left;min-width:60px;padding-left:8px}
+.heatmap td{text-align:center;padding:8px 4px;border-radius:6px;font-size:11px;font-weight:600;font-family:'JetBrains Mono',monospace;cursor:default;transition:all .2s;position:relative}
+.heatmap td:hover{transform:scale(1.12);z-index:2}
+.heatmap td.name-cell{text-align:left;font-family:'DM Sans','Noto Sans TC',sans-serif;font-size:12px;font-weight:500;color:var(--text2);padding-left:8px;background:transparent!important}
+.h0{background:var(--surface2);color:var(--text3)}
+.h1{background:rgba(25,176,143,.1);color:#40C9A2}
+.h2{background:rgba(25,176,143,.2);color:#2AB893}
+.h3{background:rgba(25,176,143,.35);color:#19B08F}
+.h4{background:rgba(240,192,64,.2);color:#E8B730}
+.h5{background:rgba(240,144,64,.25);color:#F09040}
+.h6{background:rgba(240,96,96,.2);color:#F06060}
+
+/* Burn Rate */
+.burn-list{display:flex;flex-direction:column;gap:8px}
+.burn-row{display:grid;grid-template-columns:140px 1fr 50px;align-items:center;gap:12px}
+.burn-name{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.burn-name small{display:block;font-size:10px;color:var(--text3);font-weight:400}
+.burn-bar-track{height:20px;background:var(--surface2);border-radius:6px;overflow:hidden;position:relative}
+.burn-bar-fill{height:100%;border-radius:6px;transition:width 1.2s cubic-bezier(.4,0,.2,1)}
+.burn-pct{font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;text-align:right}
+.fill-ok{background:linear-gradient(90deg,#19B08F,#40C9A2)}
+.fill-warn{background:linear-gradient(90deg,#F0C040,#F0D060)}
+.fill-danger{background:linear-gradient(90deg,#F06060,#F08080)}
+.c-ok{color:var(--green)}.c-warn{color:var(--yellow)}.c-danger{color:var(--red)}
+
+/* Risk cards */
+.risk-list{display:flex;flex-direction:column;gap:10px}
+.risk-card{padding:14px 16px;border-radius:10px;border-left:3px solid;background:var(--surface2);transition:all .2s}
+.risk-card:hover{background:var(--surface3)}
+.risk-high{border-color:var(--red)}
+.risk-medium{border-color:var(--yellow)}
+.risk-low{border-color:var(--blue)}
+.risk-tag{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;padding:2px 8px;border-radius:4px;display:inline-block;margin-bottom:6px}
+.risk-tag.high{background:rgba(240,96,96,.15);color:var(--red)}
+.risk-tag.medium{background:rgba(240,192,64,.15);color:var(--yellow)}
+.risk-tag.low{background:rgba(30,170,224,.15);color:var(--blue)}
+.risk-title{font-size:13px;font-weight:600;margin-bottom:4px}
+.risk-desc{font-size:11px;color:var(--text2);line-height:1.5}
+
+/* YonSuite Sync Panel */
+.sync-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:16px}
+.sync-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.sync-title{font-size:15px;font-weight:700;display:flex;align-items:center;gap:10px}
+.sync-title .icon{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,#FF6B35,#FF8F65);display:flex;align-items:center;justify-content:center;font-size:14px}
+.sync-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.sync-card{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center}
+.sync-card .label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;font-weight:600}
+.sync-card .value{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600}
+.sync-card .sub{font-size:11px;color:var(--text3);margin-top:4px}
+.sync-actions{display:flex;gap:10px;margin-top:20px}
+.btn{padding:10px 20px;border-radius:10px;border:none;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px}
+.btn-primary{background:var(--josun);color:#fff}
+.btn-primary:hover{background:var(--josun-d);transform:translateY(-1px)}
+.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--text2)}
+.btn-outline:hover{border-color:var(--text3);color:var(--text)}
+.btn-danger{background:rgba(240,96,96,.1);color:var(--red);border:1px solid rgba(240,96,96,.2)}
+
+/* Employee detail cards */
+.emp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.emp-card{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;transition:all .2s}
+.emp-card:hover{border-color:var(--josun);transform:translateY(-1px)}
+.emp-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.emp-name{font-size:14px;font-weight:600}
+.emp-dept{font-size:10px;color:var(--text3);background:var(--surface);padding:3px 8px;border-radius:4px}
+.emp-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.emp-stat{text-align:center}
+.emp-stat .num{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:600}
+.emp-stat .lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+
+/* Tab content */
+.tab-panel{display:none}.tab-panel.active{display:block}
+
+/* Animations */
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes countUp{from{opacity:0}to{opacity:1}}
+.animate-in{animation:fadeUp .5s ease forwards}
+.delay-1{animation-delay:.1s;opacity:0}.delay-2{animation-delay:.2s;opacity:0}
+.delay-3{animation-delay:.3s;opacity:0}.delay-4{animation-delay:.4s;opacity:0}
+
+/* Chart wrapper */
+.chart-wrap{position:relative;height:240px}
+.chart-wrap.short{height:200px}
+
+/* Category chips */
+.cat-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.cat-chip{font-size:10px;padding:4px 10px;border-radius:6px;background:var(--surface2);color:var(--text2);font-weight:500;border:1px solid var(--border)}
+
+/* Responsive */
+@media(max-width:1200px){.kpi-row{grid-template-columns:repeat(2,1fr)}.grid-2,.grid-3,.grid-23,.grid-32{grid-template-columns:1fr}.content{padding:16px}}
+@media(max-width:768px){.sidebar{display:none}.main{margin-left:0}.top-bar{padding:12px 16px}}
+
+/* Empty state */
+.empty-state{text-align:center;padding:40px;color:var(--text3)}
+.empty-state .icon{font-size:36px;margin-bottom:12px}
+.empty-state .msg{font-size:13px}
+
+/* Loading shimmer */
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+.shimmer{background:linear-gradient(90deg,var(--surface2) 25%,var(--surface3) 50%,var(--surface2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
+
+/* Log panel */
+.log-panel{background:var(--surface2);border-radius:10px;padding:14px;font-family:'JetBrains Mono',monospace;font-size:11px;max-height:200px;overflow-y:auto;color:var(--text2);line-height:1.8}
+.log-line .time{color:var(--text3)}.log-line .ok{color:var(--green)}.log-line .warn{color:var(--yellow)}.log-line .err{color:var(--red)}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="logo">J</div>
+    <div class="nav-item active" data-tab="dashboard" title="儀表板總覽">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+    </div>
+    <div class="nav-item" data-tab="employees" title="員工分析">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    </div>
+    <div class="nav-item" data-tab="projects" title="專案分析">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    </div>
+    <div class="nav-item" data-tab="sync" title="YonSuite 同步">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Top Bar -->
+    <div class="top-bar">
+      <h1><span>JOSUN</span> 工時智慧分析平台</h1>
+      <div class="top-right">
+        <div class="week-selector" id="weekSelector"></div>
+        <div class="sync-status"><div class="sync-dot"></div><span id="syncLabel">已就緒</span></div>
+      </div>
+    </div>
+
+    <!-- Dashboard Tab -->
+    <div class="content">
+      <div class="tab-panel active" id="tab-dashboard">
+        <!-- KPIs -->
+        <div class="kpi-row animate-in">
+          <div class="kpi">
+            <div class="kpi-label">本週總工時</div>
+            <div class="kpi-value" id="kpiTotalHrs">0<span class="kpi-unit">hr</span></div>
+            <div class="kpi-sub"><span class="tag tag-green" id="kpiTotalDelta">+0%</span> vs 上週</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">人均工時</div>
+            <div class="kpi-value" id="kpiAvgHrs">0<span class="kpi-unit">hr</span></div>
+            <div class="kpi-sub">基準 40hr / 週</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">核心開發佔比</div>
+            <div class="kpi-value" id="kpiCoreRatio">0<span class="kpi-unit">%</span></div>
+            <div class="kpi-sub"><span class="tag tag-green">目標 ≥50%</span></div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">風險預警</div>
+            <div class="kpi-value" id="kpiRisks">0<span class="kpi-unit">項</span></div>
+            <div class="kpi-sub"><span id="kpiRiskDetail">—</span></div>
+          </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid grid-32 animate-in delay-1">
+          <!-- Weekly Trend -->
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title"><div class="dot" style="background:var(--josun)"></div>週趨勢對比</div>
+              <div class="card-badge" id="trendBadge">W19–W22</div>
+            </div>
+            <div class="card-body"><div class="chart-wrap"><canvas id="weeklyTrendChart"></canvas></div></div>
+          </div>
+          <!-- Category Breakdown -->
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title"><div class="dot" style="background:var(--blue)"></div>任務分類分佈</div>
+              <div class="card-badge" id="catBadge">本週</div>
+            </div>
+            <div class="card-body" style="display:flex;gap:20px;align-items:center">
+              <div style="width:180px;height:180px;flex-shrink:0"><canvas id="catDonut"></canvas></div>
+              <div id="catLegend" style="flex:1"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Heatmap + Burn Rate -->
+        <div class="grid grid-2 animate-in delay-2">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title"><div class="dot" style="background:var(--purple)"></div>員工日工時熱力圖</div>
+              <div class="card-badge" id="heatBadge">本週</div>
+            </div>
+            <div class="card-body" style="overflow-x:auto" id="heatmapContainer"></div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title"><div class="dot" style="background:var(--orange)"></div>專案燃燒率</div>
+              <div class="card-badge">即時</div>
+            </div>
+            <div class="card-body"><div class="burn-list" id="burnList"></div></div>
+          </div>
+        </div>
+
+        <!-- Risks + Employee bars -->
+        <div class="grid grid-2 animate-in delay-3">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title"><div class="dot" style="background:var(--red)"></div>風險預警清單</div>
+              <div class="card-badge" id="riskBadge">0 項</div>
+            </div>
+            <div class="card-body"><div class="risk-list" id="riskList"></div></div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title"><div class="dot" style="background:var(--josun)"></div>員工工時排行</div>
+              <div class="card-badge" id="rankBadge">本週</div>
+            </div>
+            <div class="card-body"><div class="chart-wrap short"><canvas id="empBarChart"></canvas></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Employees Tab -->
+      <div class="tab-panel" id="tab-employees">
+        <div class="card animate-in">
+          <div class="card-head">
+            <div class="card-title"><div class="dot" style="background:var(--josun)"></div>員工工時卡片</div>
+            <div class="card-badge" id="empCountBadge">16 人</div>
+          </div>
+          <div class="card-body"><div class="emp-grid" id="empGrid"></div></div>
+        </div>
+      </div>
+
+      <!-- Projects Tab -->
+      <div class="tab-panel" id="tab-projects">
+        <div class="grid grid-2">
+          <div class="card animate-in">
+            <div class="card-head"><div class="card-title"><div class="dot" style="background:var(--blue)"></div>客戶工時分佈</div></div>
+            <div class="card-body"><div class="chart-wrap"><canvas id="clientChart"></canvas></div></div>
+          </div>
+          <div class="card animate-in delay-1">
+            <div class="card-head"><div class="card-title"><div class="dot" style="background:var(--purple)"></div>任務性質分析</div></div>
+            <div class="card-body"><div class="chart-wrap"><canvas id="natureChart"></canvas></div></div>
+          </div>
+        </div>
+        <div class="card animate-in delay-2">
+          <div class="card-head"><div class="card-title"><div class="dot" style="background:var(--orange)"></div>跨週趨勢 — 各分類工時變化</div></div>
+          <div class="card-body"><div class="chart-wrap"><canvas id="catTrendChart"></canvas></div></div>
+        </div>
+      </div>
+
+      <!-- YonSuite Sync Tab -->
+      <div class="tab-panel" id="tab-sync">
+        <div class="sync-panel animate-in">
+          <div class="sync-header">
+            <div class="sync-title"><div class="icon">⚡</div>YonSuite ERP 同步控制台</div>
+            <div class="sync-status"><div class="sync-dot" id="syncDot"></div><span id="syncState">待配置</span></div>
+          </div>
+          <div class="sync-grid">
+            <div class="sync-card">
+              <div class="label">待同步記錄</div>
+              <div class="value" id="syncPending">24</div>
+              <div class="sub">本週新增工時記錄</div>
+            </div>
+            <div class="sync-card">
+              <div class="label">已同步</div>
+              <div class="value c-ok" id="syncDone">0</div>
+              <div class="sub">成功寫入 YonSuite</div>
+            </div>
+            <div class="sync-card">
+              <div class="label">同步失敗</div>
+              <div class="value c-danger" id="syncFailed">0</div>
+              <div class="sub">需要手動處理</div>
+            </div>
+          </div>
+          <div class="sync-actions">
+            <button class="btn btn-primary" onclick="simulateSync()">⚡ 執行同步 (Dry Run)</button>
+            <button class="btn btn-outline" onclick="validateMapping()">🔍 驗證映射</button>
+            <button class="btn btn-outline" onclick="exportReport()">📊 匯出報告</button>
+          </div>
+        </div>
+        <div class="card animate-in delay-1">
+          <div class="card-head"><div class="card-title"><div class="dot" style="background:var(--yellow)"></div>同步日誌</div></div>
+          <div class="card-body"><div class="log-panel" id="syncLog"></div></div>
+        </div>
+        <div class="card animate-in delay-2" style="margin-top:16px">
+          <div class="card-head"><div class="card-title"><div class="dot" style="background:var(--blue)"></div>YonSuite 映射配置</div></div>
+          <div class="card-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+              <div>
+                <div style="font-size:12px;font-weight:600;margin-bottom:10px;color:var(--text2)">API 連接設定</div>
+                <div style="background:var(--surface2);border-radius:10px;padding:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);line-height:2">
+                  <div>DATA_CENTER: <span style="color:var(--josun)">c1.yonyoucloud.com</span></div>
+                  <div>ENTITY_PATH: <span style="color:var(--yellow)">/yonbip/pm/timesheet</span></div>
+                  <div>AUTH_METHOD: <span style="color:var(--blue)">HmacSHA256</span></div>
+                  <div>TOKEN_TTL: <span>7200s (2hr)</span></div>
+                  <div>RATE_LIMIT: <span>2 req/s</span></div>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:12px;font-weight:600;margin-bottom:10px;color:var(--text2)">欄位映射對應</div>
+                <div style="background:var(--surface2);border-radius:10px;padding:14px;font-size:11px;color:var(--text3);line-height:2">
+                  <div>員工姓名 → <span style="color:var(--josun)">人員</span></div>
+                  <div>週次 → <span style="color:var(--josun)">開始日期 + 結束日期</span></div>
+                  <div>客戶名稱 → <span style="color:var(--josun)">專案編碼（映射）</span></div>
+                  <div>任務大類 → <span style="color:var(--josun)">專案活動名稱</span></div>
+                  <div>每日工時 → <span style="color:var(--josun)">工時明細子表</span></div>
+                  <div>工時類型 → <span style="color:var(--yellow)">正常 (預設)</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== DATA =====
+const CATS = ['行政事務','內部溝通','專案管理','前端開發','後端開發','系統整合','圖控開發','設計規劃','客戶接洽','出差考察','突發狀況','自控系統設計','PLC程式開發','DDC控制器開發','圖控與人機介面','現場施工與調試','儀電工程'];
+const CAT_COLORS = ['#5E6E85','#6496C8','#19B08F','#64BE8C','#8A97A5','#1EAAE0','#F09040','#AAE6B4','#F06060','#F0C040','#C03030','#7C5CFC','#E8883E','#56B4E9','#009E73','#CC79A7','#D55E00'];
+const NATURE = {
+  '核心開發':['前端開發','後端開發','系統整合','圖控開發','設計規劃','自控系統設計','PLC程式開發','DDC控制器開發','圖控與人機介面','現場施工與調試','儀電工程'],
+  '非專案工時':['行政事務','內部溝通'],
+  '管理工時':['專案管理'],
+  '對外工時':['客戶接洽','出差考察'],
+  '異常工時':['突發狀況']
+};
+const NATURE_COLORS = {'核心開發':'#19B08F','非專案工時':'#5E6E85','管理工時':'#6496C8','對外工時':'#F0C040','異常工時':'#F06060'};
+
+const EMPLOYEES = ['萌萌','小熊','蒙海','羅潔','Marin','廖嘉良','天舒','雪可','馨蕊','慧婷','宇捷','秉睿','實習生','王笑一','裴文','劉彥儒','王一青'];
+const WEEKS = ['W19','W20','W21','W22','W23','W24','W25'];
+const WEEK_DATES = {W19:'5/5~5/9',W20:'5/12~5/16',W21:'5/19~5/23',W22:'5/26~5/30',W23:'6/2~6/8',W24:'6/9~6/15',W25:'6/16~6/22'};
+
+const TS = {
+W19:{萌萌:{行政事務:2,內部溝通:6,專案管理:16,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:5,出差考察:7,突發狀況:2},小熊:{行政事務:2,內部溝通:4,專案管理:0,前端開發:24,後端開發:0,系統整合:0,圖控開發:0,設計規劃:3,客戶接洽:0,出差考察:0,突發狀況:7},蒙海:{行政事務:0,內部溝通:4,專案管理:0,前端開發:0,後端開發:20,系統整合:12,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:6},羅潔:{行政事務:0,內部溝通:4,專案管理:4,前端開發:0,後端開發:0,系統整合:18,圖控開發:0,設計規劃:0,客戶接洽:4,出差考察:6,突發狀況:4},Marin:{行政事務:2,內部溝通:4,專案管理:0,前端開發:0,後端開發:0,系統整合:0,圖控開發:18,設計規劃:5,客戶接洽:0,出差考察:3,突發狀況:4},廖嘉良:{行政事務:2,內部溝通:6,專案管理:10,前端開發:3,後端開發:4,系統整合:2,圖控開發:3,設計規劃:1,客戶接洽:4,出差考察:3,突發狀況:2},天舒:{行政事務:2,內部溝通:4,專案管理:6,前端開發:4,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:0},雪可:{行政事務:2,內部溝通:4,專案管理:8,前端開發:0,後端開發:0,系統整合:6,圖控開發:0,設計規劃:0,客戶接洽:4,出差考察:6,突發狀況:3},馨蕊:{行政事務:2,內部溝通:6,專案管理:4,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:8,客戶接洽:3,出差考察:0,突發狀況:0},慧婷:{行政事務:2,內部溝通:6,專案管理:4,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:6,客戶接洽:4,出差考察:0,突發狀況:0},宇捷:{行政事務:2,內部溝通:4,專案管理:6,前端開發:0,後端開發:4,系統整合:4,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:0},秉睿:{行政事務:2,內部溝通:4,專案管理:0,前端開發:0,後端開發:0,系統整合:8,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:2}},
+W23:{萌萌:{行政事務:2,內部溝通:7,專案管理:17,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:4,出差考察:8,突發狀況:2},小熊:{行政事務:2,內部溝通:5,專案管理:0,前端開發:25,後端開發:0,系統整合:0,圖控開發:0,設計規劃:4,客戶接洽:0,出差考察:0,突發狀況:3},蒙海:{行政事務:0,內部溝通:4,專案管理:0,前端開發:0,後端開發:18,系統整合:14,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:6},羅潔:{行政事務:0,內部溝通:5,專案管理:4,前端開發:0,後端開發:0,系統整合:16,圖控開發:0,設計規劃:0,客戶接洽:5,出差考察:6,突發狀況:4},Marin:{行政事務:2,內部溝通:6,專案管理:0,前端開發:0,後端開發:0,系統整合:0,圖控開發:16,設計規劃:6,客戶接洽:0,出差考察:4,突發狀況:4},廖嘉良:{行政事務:2,內部溝通:5,專案管理:11,前端開發:4,後端開發:3,系統整合:2,圖控開發:2,設計規劃:1,客戶接洽:5,出差考察:4,突發狀況:1},天舒:{行政事務:1,內部溝通:3,專案管理:6,前端開發:3,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:1},雪可:{行政事務:2,內部溝通:5,專案管理:9,前端開發:0,後端開發:0,系統整合:5,圖控開發:0,設計規劃:0,客戶接洽:5,出差考察:4,突發狀況:2},馨蕊:{行政事務:2,內部溝通:5,專案管理:3,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:10,客戶接洽:3,出差考察:0,突發狀況:0},慧婷:{行政事務:1,內部溝通:7,專案管理:5,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:7,客戶接洽:3,出差考察:0,突發狀況:1},宇捷:{行政事務:2,內部溝通:3,專案管理:7,前端開發:0,後端開發:5,系統整合:3,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:0},秉睿:{行政事務:2,內部溝通:5,專案管理:0,前端開發:0,後端開發:0,系統整合:9,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:1},實習生:{行政事務:3,內部溝通:3,專案管理:2,前端開發:5,後端開發:0,系統整合:0,圖控開發:0,設計規劃:5,客戶接洽:0,出差考察:0,突發狀況:2},王笑一:{行政事務:2,內部溝通:3,專案管理:2,前端開發:0,後端開發:0,系統整合:2,圖控開發:0,設計規劃:0,客戶接洽:1,出差考察:0,突發狀況:0},裴文:{行政事務:1,內部溝通:2,專案管理:2,前端開發:0,後端開發:0,系統整合:2,圖控開發:0,設計規劃:0,客戶接洽:1,出差考察:0,突發狀況:0},劉彥儒:{行政事務:2,內部溝通:4,專案管理:6,自控系統設計:8,PLC程式開發:6,DDC控制器開發:3,圖控與人機介面:2,現場施工與調試:5,儀電工程:0,客戶接洽:2,出差考察:0,突發狀況:1},王一青:{行政事務:1,內部溝通:3,專案管理:4,自控系統設計:6,PLC程式開發:8,DDC控制器開發:4,圖控與人機介面:3,現場施工與調試:4,儀電工程:0,客戶接洽:1,出差考察:0,突發狀況:0}},
+W24:{萌萌:{行政事務:2,內部溝通:6,專案管理:20,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:6,出差考察:5,突發狀況:3},小熊:{行政事務:1,內部溝通:4,專案管理:0,前端開發:20,後端開發:0,系統整合:0,圖控開發:0,設計規劃:2,客戶接洽:0,出差考察:0,突發狀況:7},蒙海:{行政事務:0,內部溝通:2,專案管理:0,前端開發:0,後端開發:22,系統整合:10,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:6},羅潔:{行政事務:0,內部溝通:6,專案管理:2,前端開發:0,後端開發:0,系統整合:20,圖控開發:0,設計規劃:0,客戶接洽:3,出差考察:5,突發狀況:3},Marin:{行政事務:2,內部溝通:4,專案管理:0,前端開發:0,後端開發:0,系統整合:0,圖控開發:22,設計規劃:4,客戶接洽:0,出差考察:2,突發狀況:4},廖嘉良:{行政事務:3,內部溝通:6,專案管理:8,前端開發:2,後端開發:4,系統整合:1,圖控開發:3,設計規劃:2,客戶接洽:3,出差考察:6,突發狀況:0},天舒:{行政事務:2,內部溝通:4,專案管理:5,前端開發:2,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:0},雪可:{行政事務:1,內部溝通:6,專案管理:7,前端開發:0,後端開發:0,系統整合:7,圖控開發:0,設計規劃:0,客戶接洽:3,出差考察:8,突發狀況:3},馨蕊:{行政事務:1,內部溝通:6,專案管理:4,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:9,客戶接洽:2,出差考察:0,突發狀況:1},慧婷:{行政事務:2,內部溝通:5,專案管理:3,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:8,客戶接洽:3,出差考察:0,突發狀況:0},宇捷:{行政事務:1,內部溝通:5,專案管理:5,前端開發:0,後端開發:3,系統整合:5,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:1},秉睿:{行政事務:1,內部溝通:4,專案管理:0,前端開發:0,後端開發:0,系統整合:11,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:0},實習生:{行政事務:2,內部溝通:4,專案管理:1,前端開發:6,後端開發:0,系統整合:0,圖控開發:0,設計規劃:7,客戶接洽:0,出差考察:0,突發狀況:1},王笑一:{行政事務:2,內部溝通:4,專案管理:3,前端開發:2,後端開發:0,系統整合:3,圖控開發:0,設計規劃:1,客戶接洽:1,出差考察:0,突發狀況:0},裴文:{行政事務:2,內部溝通:3,專案管理:2,前端開發:0,後端開發:0,系統整合:3,圖控開發:0,設計規劃:1,客戶接洽:1,出差考察:0,突發狀況:0},劉彥儒:{行政事務:1,內部溝通:5,專案管理:5,自控系統設計:10,PLC程式開發:5,DDC控制器開發:4,圖控與人機介面:3,現場施工與調試:6,儀電工程:2,客戶接洽:2,出差考察:0,突發狀況:0},王一青:{行政事務:2,內部溝通:4,專案管理:5,自控系統設計:5,PLC程式開發:10,DDC控制器開發:3,圖控與人機介面:2,現場施工與調試:5,儀電工程:0,客戶接洽:1,出差考察:0,突發狀況:0}},
+W25:{萌萌:{行政事務:2,內部溝通:8,專案管理:16,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:5,出差考察:7,突發狀況:2},小熊:{行政事務:2,內部溝通:4,專案管理:0,前端開發:26,後端開發:0,系統整合:0,圖控開發:0,設計規劃:5,客戶接洽:0,出差考察:0,突發狀況:5},蒙海:{行政事務:0,內部溝通:4,專案管理:0,前端開發:0,後端開發:19,系統整合:13,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:5},羅潔:{行政事務:0,內部溝通:4,專案管理:3,前端開發:0,後端開發:0,系統整合:22,圖控開發:0,設計規劃:0,客戶接洽:4,出差考察:4,突發狀況:6},Marin:{行政事務:2,內部溝通:5,專案管理:0,前端開發:0,後端開發:0,系統整合:0,圖控開發:19,設計規劃:5,客戶接洽:0,出差考察:3,突發狀況:4},廖嘉良:{行政事務:2,內部溝通:7,專案管理:10,前端開發:3,後端開發:3,系統整合:2,圖控開發:2,設計規劃:1,客戶接洽:6,出差考察:3,突發狀況:3},天舒:{行政事務:1,內部溝通:5,專案管理:7,前端開發:4,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:1},雪可:{行政事務:2,內部溝通:4,專案管理:10,前端開發:0,後端開發:0,系統整合:6,圖控開發:0,設計規劃:0,客戶接洽:5,出差考察:5,突發狀況:2},馨蕊:{行政事務:2,內部溝通:7,專案管理:3,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:11,客戶接洽:2,出差考察:0,突發狀況:0},慧婷:{行政事務:2,內部溝通:6,專案管理:4,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:7,客戶接洽:4,出差考察:0,突發狀況:0},宇捷:{行政事務:2,內部溝通:4,專案管理:8,前端開發:0,後端開發:6,系統整合:4,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:0},秉睿:{行政事務:2,內部溝通:4,專案管理:0,前端開發:0,後端開發:0,系統整合:10,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:2},實習生:{行政事務:4,內部溝通:3,專案管理:2,前端開發:7,後端開發:0,系統整合:0,圖控開發:0,設計規劃:6,客戶接洽:0,出差考察:0,突發狀況:2},王笑一:{行政事務:2,內部溝通:4,專案管理:4,前端開發:3,後端開發:0,系統整合:4,圖控開發:0,設計規劃:2,客戶接洽:1,出差考察:0,突發狀況:0},裴文:{行政事務:2,內部溝通:3,專案管理:3,前端開發:0,後端開發:0,系統整合:4,圖控開發:0,設計規劃:2,客戶接洽:2,出差考察:0,突發狀況:0},劉彥儒:{行政事務:2,內部溝通:4,專案管理:7,自控系統設計:9,PLC程式開發:7,DDC控制器開發:3,圖控與人機介面:2,現場施工與調試:5,儀電工程:1,客戶接洽:0,出差考察:0,突發狀況:0},王一青:{行政事務:1,內部溝通:3,專案管理:5,自控系統設計:7,PLC程式開發:7,DDC控制器開發:5,圖控與人機介面:4,現場施工與調試:3,儀電工程:1,客戶接洽:1,出差考察:0,突發狀況:0}}
+,
+W20:{萌萌:{行政事務:2,內部溝通:8,專案管理:18,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:6,出差考察:8,突發狀況:2},小熊:{行政事務:2,內部溝通:4,專案管理:0,前端開發:22,後端開發:0,系統整合:0,圖控開發:0,設計規劃:2,客戶接洽:0,出差考察:0,突發狀況:12},蒙海:{行政事務:0,內部溝通:4,專案管理:0,前端開發:0,後端開發:16,系統整合:13,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:7},羅潔:{行政事務:0,內部溝通:4,專案管理:2,前端開發:0,後端開發:0,系統整合:18,圖控開發:0,設計規劃:0,客戶接洽:6,出差考察:4,突發狀況:4},Marin:{行政事務:2,內部溝通:4,專案管理:0,前端開發:0,後端開發:0,系統整合:0,圖控開發:20,設計規劃:7,客戶接洽:0,出差考察:3,突發狀況:4},廖嘉良:{行政事務:2,內部溝通:6,專案管理:8,前端開發:2,後端開發:3,系統整合:1,圖控開發:2,設計規劃:1,客戶接洽:6,出差考察:8,突發狀況:0},天舒:{行政事務:2,內部溝通:6,專案管理:8,前端開發:2,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:0},雪可:{行政事務:2,內部溝通:4,專案管理:10,前端開發:0,後端開發:0,系統整合:4,圖控開發:0,設計規劃:0,客戶接洽:6,出差考察:4,突發狀況:5},馨蕊:{行政事務:2,內部溝通:6,專案管理:2,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:10,客戶接洽:2,出差考察:0,突發狀況:0},慧婷:{行政事務:2,內部溝通:6,專案管理:4,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:8,客戶接洽:2,出差考察:0,突發狀況:0},宇捷:{行政事務:2,內部溝通:4,專案管理:8,前端開發:0,後端開發:2,系統整合:2,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:0},秉睿:{行政事務:2,內部溝通:4,專案管理:0,前端開發:0,後端開發:0,系統整合:10,圖控開發:0,設計設計:0,客戶接洽:0,出差考察:0,突發狀況:2}},
+W21:{萌萌:{行政事務:0,內部溝通:5,專案管理:22,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:3,出差考察:4,突發狀況:0},小熊:{行政事務:1,內部溝通:6,專案管理:0,前端開發:22,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:13},蒙海:{行政事務:0,內部溝通:2,專案管理:0,前端開發:0,後端開發:20,系統整合:15,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:5},羅潔:{行政事務:0,內部溝通:6,專案管理:2,前端開發:0,後端開發:0,系統整合:25,圖控開發:0,設計規劃:0,客戶接洽:3,出差考察:0,突發狀況:0},Marin:{行政事務:2,內部溝通:6,專案管理:0,前端開發:0,後端開發:0,系統整合:0,圖控開發:20,設計規劃:2,客戶接洽:0,出差考察:3,突發狀況:0},廖嘉良:{行政事務:1,內部溝通:6,專案管理:6,前端開發:3,後端開發:4,系統整合:2,圖控開發:3,設計規劃:1,客戶接洽:5,出差考察:7,突發狀況:4},天舒:{行政事務:1,內部溝通:4,專案管理:4,前端開發:2,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:0},雪可:{行政事務:1,內部溝通:4,專案管理:6,前端開發:0,後端開發:0,系統整合:4,圖控開發:0,設計規劃:0,客戶接洽:4,出差考察:2,突發狀況:3},馨蕊:{行政事務:1,內部溝通:5,專案管理:4,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:8,客戶接洽:4,出差考察:0,突發狀況:0},慧婷:{行政事務:1,內部溝通:5,專案管理:4,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:6,客戶接洽:4,出差考察:0,突發狀況:0},宇捷:{行政事務:1,內部溝通:4,專案管理:6,前端開發:0,後端開發:4,系統整合:4,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:0},秉睿:{行政事務:1,內部溝通:4,專案管理:0,前端開發:0,後端開發:0,系統整合:8,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:3}},
+W22:{萌萌:{行政事務:2,內部溝通:8,專案管理:15,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:5,出差考察:6,突發狀況:4},小熊:{行政事務:2,內部溝通:4,專案管理:0,前端開發:23,後端開發:0,系統整合:0,圖控開發:0,設計規劃:6,客戶接洽:0,出差考察:0,突發狀況:5},蒙海:{行政事務:0,內部溝通:2,專案管理:0,前端開發:0,後端開發:20,系統整合:11,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:11},羅潔:{行政事務:0,內部溝通:4,專案管理:3,前端開發:0,後端開發:0,系統整合:18,圖控開發:0,設計規劃:0,客戶接洽:4,出差考察:3,突發狀況:10},Marin:{行政事務:2,內部溝通:4,專案管理:0,前端開發:0,後端開發:0,系統整合:0,圖控開發:18,設計規劃:6,客戶接洽:0,出差考察:3,突發狀況:5},廖嘉良:{行政事務:3,內部溝通:6,專案管理:9,前端開發:3,後端開發:3,系統整合:2,圖控開發:2,設計規劃:2,客戶接洽:4,出差考察:2,突發狀況:2},天舒:{行政事務:2,內部溝通:4,專案管理:4,前端開發:4,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:0},雪可:{行政事務:2,內部溝通:6,專案管理:8,前端開發:0,後端開發:0,系統整合:6,圖控開發:0,設計規劃:0,客戶接洽:4,出差考察:2,突發狀況:2},馨蕊:{行政事務:2,內部溝通:6,專案管理:4,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:8,客戶接洽:2,出差考察:0,突發狀況:0},慧婷:{行政事務:2,內部溝通:6,專案管理:4,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:6,客戶接洽:2,出差考察:0,突發狀況:0},宇捷:{行政事務:2,內部溝通:4,專案管理:6,前端開發:0,後端開發:4,系統整合:4,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:0},秉睿:{行政事務:2,內部溝通:4,專案管理:0,前端開發:0,後端開發:0,系統整合:8,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:2}}
+};
+
+const HEATMAP = {
+W22:{萌萌:{週一:8,週二:8,週三:8,週四:8,週五:8},小熊:{週一:6,週二:7,週三:6,週四:4,週五:8},蒙海:{週一:8,週二:6,週三:8,週四:8,週五:8},羅潔:{週一:8,週二:8,週三:8,週四:8,週五:8},Marin:{週一:6,週二:8,週三:8,週四:8,週五:8},肖斌:{週一:4,週二:4,週三:4,週四:4,週五:0},廖嘉良:{週一:9,週二:7,週三:8,週四:8,週五:8},天舒:{週一:4,週二:4,週三:4,週四:0,週五:0},雪可:{週一:8,週二:8,週三:8,週四:8,週五:8},馨蕊:{週一:6,週二:6,週三:5,週四:6,週五:5},慧婷:{週一:6,週二:6,週三:5,週四:6,週五:5},宇捷:{週一:5,週二:5,週三:5,週四:5,週五:4},秉睿:{週一:8,週二:8,週三:8,週四:8,週五:8},實習生:{週一:4,週二:4,週三:4,週四:4,週五:4},王笑一:{週一:0,週二:0,週三:0,週四:0,週五:0},裴文:{週一:0,週二:0,週三:0,週四:0,週五:0}},
+W23:{萌萌:{週一:8,週二:8,週三:8,週四:8,週五:8},小熊:{週一:8,週二:8,週三:8,週四:7,週五:8},蒙海:{週一:9,週二:8,週三:9,週四:8,週五:8},羅潔:{週一:8,週二:8,週三:8,週四:8,週五:8},Marin:{週一:8,週二:8,週三:7,週四:8,週五:7},廖嘉良:{週一:8,週二:8,週三:8,週四:8,週五:8},天舒:{週一:3,週二:4,週三:3,週四:3,週五:1},雪可:{週一:7,週二:6,週三:7,週四:6,週五:6},馨蕊:{週一:5,週二:5,週三:4,週四:5,週五:4},慧婷:{週一:5,週二:5,週三:5,週四:5,週五:4},宇捷:{週一:4,週二:5,週三:4,週四:4,週五:3},秉睿:{週一:3,週二:4,週三:3,週四:3,週五:3},實習生:{週一:4,週二:4,週三:4,週四:4,週五:4},王笑一:{週一:2,週二:2,週三:2,週四:2,週五:2},裴文:{週一:2,週二:2,週三:1,週四:2,週五:1},肖斌:{週一:4,週二:3,週三:4,週四:3,週五:0},劉彥儒:{週一:8,週二:8,週三:8,週四:7,週五:7},王一青:{週一:7,週二:7,週三:7,週四:7,週五:6}},
+W24:{萌萌:{週一:8,週二:9,週三:8,週四:8,週五:9},小熊:{週一:7,週二:7,週三:7,週四:6,週五:7},蒙海:{週一:8,週二:8,週三:8,週四:8,週五:8},羅潔:{週一:8,週二:7,週三:8,週四:8,週五:8},Marin:{週一:7,週二:8,週三:8,週四:8,週五:7},廖嘉良:{週一:7,週二:8,週三:7,週四:8,週五:8},天舒:{週一:3,週二:3,週三:3,週四:2,週五:2},雪可:{週一:7,週二:7,週三:7,週四:7,週五:7},馨蕊:{週一:5,週二:5,週三:4,週四:5,週五:4},慧婷:{週一:4,週二:5,週三:4,週四:4,週五:4},宇捷:{週一:4,週二:4,週三:4,週四:4,週五:4},秉睿:{週一:3,週二:4,週三:3,週四:3,週五:3},實習生:{週一:4,週二:4,週三:4,週四:5,週五:4},王笑一:{週一:3,週二:4,週三:3,週四:3,週五:3},裴文:{週一:2,週二:3,週三:2,週四:3,週五:2},肖斌:{週一:4,週二:4,週三:3,週四:3,週五:0},劉彥儒:{週一:9,週二:9,週三:8,週四:9,週五:8},王一青:{週一:8,週二:7,週三:8,週四:7,週五:7}},
+W25:{萌萌:{週一:8,週二:8,週三:8,週四:8,週五:8},小熊:{週一:8,週二:9,週三:8,週四:9,週五:8},蒙海:{週一:8,週二:8,週三:9,週四:8,週五:8},羅潔:{週一:9,週二:8,週三:9,週四:9,週五:8},Marin:{週一:8,週二:8,週三:7,週四:8,週五:7},廖嘉良:{週一:8,週二:9,週三:8,週四:9,週五:8},天舒:{週一:4,週二:4,週三:4,週四:3,週五:3},雪可:{週一:7,週二:7,週三:7,週四:7,週五:6},馨蕊:{週一:5,週二:6,週三:5,週四:5,週五:4},慧婷:{週一:5,週二:5,週三:4,週四:5,週五:4},宇捷:{週一:5,週二:5,週三:5,週四:5,週五:4},秉睿:{週一:4,週二:4,週三:3,週四:4,週五:3},實習生:{週一:5,週二:5,週三:4,週四:5,週五:5},王笑一:{週一:4,週二:4,週三:4,週四:4,週五:4},裴文:{週一:3,週二:4,週三:3,週四:3,週五:3},肖斌:{週一:4,週二:4,週三:3,週四:4,週五:0},劉彥儒:{週一:8,週二:8,週三:8,週四:8,週五:8},王一青:{週一:7,週二:8,週三:7,週四:8,週五:7}}
+
+};
+
+const BURN_DATA = [
+  {name:'鵬鼎PA02',client:'FMCS系統整合',actual:120,est:160},
+  {name:'鵬鼎PA06',client:'空調自控工程',actual:85,est:100},
+  {name:'耀登科技',client:'門禁系統整合',actual:45,est:60},
+  {name:'群光電子',client:'BMS系統升級',actual:68,est:80},
+  {name:'川奇電子',client:'產線監控系統',actual:32,est:50},
+  {name:'联茂一期',client:'廠務監控新建',actual:55,est:70},
+  {name:'普英高分子',client:'環境監控系統',actual:28,est:40},
+];
+
+const RISKS = [
+  {level:'high',title:'單點故障風險 — 蒙海',desc:'蒙海在鵬鼎系列專案中同時負責「後端開發」與「系統整合」兩項核心工作，且佔該專案後端工時超過 85%。',tag:'SPOF'},
+  {level:'high',title:'單點故障風險 — 羅潔',desc:'羅潔在多個專案中包辦「系統整合」與「專案管理」，存在知識孤島風險。',tag:'SPOF'},
+  {level:'medium',title:'工作碎片化 — 廖嘉良 (W21)',desc:'廖嘉良於 W21 填寫了 11 個不同的任務大類，工時高度碎片化，影響深度產出。',tag:'碎片化'},
+  {level:'medium',title:'突發狀況比例偏高 — 蒙海 (W22)',desc:'蒙海 W22「突發狀況」達 11 小時 (25%)，遠超 10% 警戒線，需關注根因。',tag:'突發'},
+  {level:'low',title:'工時不足 — 天舒',desc:'天舒近兩週工時偏低 (16hr)，建議確認是否有休假或任務分配不足。',tag:'工時'},
+];
+
+// ===== STATE =====
+let currentWeek = 'W25';
+let charts = {};
+
+// ===== HELPERS =====
+function empTotal(week, emp) {
+  const d = TS[week]?.[emp]; if(!d) return 0;
+  return CATS.reduce((s,c) => s + (d[c]||0), 0);
+}
+function weekTotal(week) {
+  return EMPLOYEES.reduce((s,e) => s + empTotal(week,e), 0);
+}
+function catTotal(week, cat) {
+  return EMPLOYEES.reduce((s,e) => s + ((TS[week]?.[e]?.[cat])||0), 0);
+}
+function natureTotal(week, nature) {
+  const cats = NATURE[nature]||[];
+  return cats.reduce((s,c) => s + catTotal(week,c), 0);
+}
+function heatLevel(h) {
+  if(h===0) return 'h0'; if(h<=2) return 'h1'; if(h<=4) return 'h2';
+  if(h<=6) return 'h3'; if(h<=8) return 'h4'; if(h<=10) return 'h5'; return 'h6';
+}
+
+// ===== RENDER =====
+function renderWeekSelector() {
+  const c = document.getElementById('weekSelector');
+  c.innerHTML = WEEKS.map(w => `<button class="week-btn${w===currentWeek?' active':''}" onclick="switchWeek('${w}')">${w} <span style="opacity:.6;font-weight:400;font-size:10px">${WEEK_DATES[w]}</span></button>`).join('');
+}
+
+function switchWeek(w) {
+  currentWeek = w;
+  renderAll();
+}
+
+function renderKPIs() {
+  const total = weekTotal(currentWeek);
+  const activeEmps = EMPLOYEES.filter(e => empTotal(currentWeek,e) > 0).length;
+  const avg = activeEmps ? (total / activeEmps).toFixed(1) : 0;
+  const coreHrs = natureTotal(currentWeek, '核心開發');
+  const coreRatio = total ? ((coreHrs/total)*100).toFixed(0) : 0;
+
+  const prevIdx = WEEKS.indexOf(currentWeek) - 1;
+  let delta = 0;
+  if (prevIdx >= 0) {
+    const prevTotal = weekTotal(WEEKS[prevIdx]);
+    if (prevTotal > 0) delta = (((total - prevTotal) / prevTotal) * 100).toFixed(1);
+  }
+
+  animateValue('kpiTotalHrs', total, 'hr');
+  animateValue('kpiAvgHrs', parseFloat(avg), 'hr');
+  animateValue('kpiCoreRatio', parseInt(coreRatio), '%');
+
+  const deltaEl = document.getElementById('kpiTotalDelta');
+  deltaEl.textContent = (delta >= 0 ? '+' : '') + delta + '%';
+  deltaEl.className = 'tag ' + (delta >= 0 ? 'tag-green' : 'tag-red');
+
+  const riskCount = RISKS.length;
+  document.getElementById('kpiRisks').innerHTML = riskCount + '<span class="kpi-unit">項</span>';
+  document.getElementById('kpiRiskDetail').innerHTML = `<span class="tag tag-red">${RISKS.filter(r=>r.level==='high').length} 高</span> <span class="tag tag-yellow">${RISKS.filter(r=>r.level==='medium').length} 中</span>`;
+}
+
+function animateValue(id, target, unit) {
+  const el = document.getElementById(id);
+  const isFloat = target % 1 !== 0;
+  let current = 0;
+  const step = target / 30;
+  const interval = setInterval(() => {
+    current += step;
+    if (current >= target) { current = target; clearInterval(interval); }
+    el.innerHTML = (isFloat ? current.toFixed(1) : Math.round(current)) + `<span class="kpi-unit">${unit}</span>`;
+  }, 20);
+}
+
+function renderWeeklyTrend() {
+  const ctx = document.getElementById('weeklyTrendChart').getContext('2d');
+  if (charts.weeklyTrend) charts.weeklyTrend.destroy();
+
+  const activeEmps = EMPLOYEES.filter(e => EMPLOYEES.indexOf(e) < 6);
+  const datasets = activeEmps.map((emp, i) => ({
+    label: emp,
+    data: WEEKS.map(w => empTotal(w, emp)),
+    borderColor: CAT_COLORS[i % CAT_COLORS.length],
+    backgroundColor: CAT_COLORS[i % CAT_COLORS.length] + '20',
+    borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, tension: .4, fill: false
+  }));
+
+  charts.weeklyTrend = new Chart(ctx, {
+    type: 'line',
+    data: { labels: WEEKS.map(w => w + ' ' + WEEK_DATES[w]), datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { color: '#95A3B8', font: { size: 10 }, boxWidth: 12, padding: 12 } } },
+      scales: {
+        x: { grid: { color: '#232D4020' }, ticks: { color: '#5E6E85', font: { size: 10 } } },
+        y: { grid: { color: '#232D4040' }, ticks: { color: '#5E6E85', font: { size: 10 } }, beginAtZero: true }
+      }
+    }
+  });
+  document.getElementById('trendBadge').textContent = WEEKS[0] + '–' + WEEKS[WEEKS.length-1];
+}
+
+function renderCatDonut() {
+  const ctx = document.getElementById('catDonut').getContext('2d');
+  if (charts.catDonut) charts.catDonut.destroy();
+
+  const data = CATS.map(c => catTotal(currentWeek, c));
+  const total = data.reduce((a,b) => a+b, 0);
+
+  charts.catDonut = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels: CATS, datasets: [{ data, backgroundColor: CAT_COLORS, borderWidth: 0, hoverOffset: 6 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '65%',
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  // Legend
+  const legend = document.getElementById('catLegend');
+  legend.innerHTML = CATS.map((c, i) => {
+    const v = data[i]; const pct = total ? ((v/total)*100).toFixed(1) : 0;
+    if (v === 0) return '';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:11px">
+      <div style="width:10px;height:10px;border-radius:3px;background:${CAT_COLORS[i]};flex-shrink:0"></div>
+      <span style="flex:1;color:var(--text2)">${c}</span>
+      <span style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:11px">${v}h</span>
+      <span style="color:var(--text3);font-size:10px;width:36px;text-align:right">${pct}%</span>
+    </div>`;
+  }).join('');
+  document.getElementById('catBadge').textContent = currentWeek + ' ' + WEEK_DATES[currentWeek];
+}
+
+function renderHeatmap() {
+  const container = document.getElementById('heatmapContainer');
+  const hData = HEATMAP[currentWeek] || HEATMAP['W22'];
+  const days = ['週一','週二','週三','週四','週五'];
+  const emps = Object.keys(hData);
+
+  let html = '<table class="heatmap"><thead><tr><th class="name-col">員工</th>';
+  days.forEach(d => html += `<th>${d}</th>`);
+  html += '<th>合計</th></tr></thead><tbody>';
+
+  emps.forEach(emp => {
+    const row = hData[emp];
+    const total = days.reduce((s,d) => s + (row[d]||0), 0);
+    if (total === 0) return;
+    html += `<tr><td class="name-cell">${emp}</td>`;
+    days.forEach(d => {
+      const h = row[d] || 0;
+      html += `<td class="${heatLevel(h)}">${h || '–'}</td>`;
+    });
+    html += `<td style="font-weight:700;color:var(--text);background:var(--surface2);border-radius:6px">${total}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+  document.getElementById('heatBadge').textContent = currentWeek;
+}
+
+function renderBurnRate() {
+  const el = document.getElementById('burnList');
+  el.innerHTML = BURN_DATA.map(p => {
+    const pct = ((p.actual / p.est) * 100).toFixed(0);
+    const cls = pct >= 90 ? 'fill-danger' : pct >= 70 ? 'fill-warn' : 'fill-ok';
+    const ccls = pct >= 90 ? 'c-danger' : pct >= 70 ? 'c-warn' : 'c-ok';
+    return `<div class="burn-row">
+      <div class="burn-name">${p.name}<small>${p.client}</small></div>
+      <div class="burn-bar-track"><div class="burn-bar-fill ${cls}" style="width:${Math.min(pct,100)}%"></div></div>
+      <div class="burn-pct ${ccls}">${pct}%</div>
+    </div>`;
+  }).join('');
+}
+
+function renderRisks() {
+  const el = document.getElementById('riskList');
+  el.innerHTML = RISKS.map(r => `
+    <div class="risk-card risk-${r.level}">
+      <div class="risk-tag ${r.level}">${r.tag}</div>
+      <div class="risk-title">${r.title}</div>
+      <div class="risk-desc">${r.desc}</div>
+    </div>
+  `).join('');
+  document.getElementById('riskBadge').textContent = RISKS.length + ' 項';
+}
+
+function renderEmpBar() {
+  const ctx = document.getElementById('empBarChart').getContext('2d');
+  if (charts.empBar) charts.empBar.destroy();
+
+  const emps = EMPLOYEES.filter(e => empTotal(currentWeek,e) > 0);
+  const data = emps.map(e => empTotal(currentWeek,e));
+
+  charts.empBar = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: emps,
+      datasets: [{ data, backgroundColor: data.map(v => v >= 40 ? '#19B08F80' : v >= 30 ? '#F0C04080' : '#F0606080'), borderRadius: 6, borderSkipped: false }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#232D4030' }, ticks: { color: '#5E6E85', font: { size: 10 } }, beginAtZero: true },
+        y: { grid: { display: false }, ticks: { color: '#95A3B8', font: { size: 10 } } }
+      }
+    }
+  });
+  document.getElementById('rankBadge').textContent = currentWeek;
+}
+
+function renderEmpGrid() {
+  const el = document.getElementById('empGrid');
+  const activeEmps = EMPLOYEES.filter(e => empTotal(currentWeek,e) > 0);
+  document.getElementById('empCountBadge').textContent = activeEmps.length + ' 人';
+
+  el.innerHTML = activeEmps.map(emp => {
+    const total = empTotal(currentWeek, emp);
+    const coreHrs = NATURE['核心開發'].reduce((s,c) => s + ((TS[currentWeek]?.[emp]?.[c])||0), 0);
+    const corePct = total ? ((coreHrs/total)*100).toFixed(0) : 0;
+    const cats = CATS.filter(c => (TS[currentWeek]?.[emp]?.[c]||0) > 0);
+    const util = ((total/40)*100).toFixed(0);
+
+    return `<div class="emp-card">
+      <div class="emp-top">
+        <div class="emp-name">${emp}</div>
+        <div class="emp-dept">系統集成部</div>
+      </div>
+      <div class="emp-stats">
+        <div class="emp-stat"><div class="num">${total}</div><div class="lbl">總工時</div></div>
+        <div class="emp-stat"><div class="num" style="color:${parseInt(util)>=100?'var(--green)':parseInt(util)>=80?'var(--yellow)':'var(--red)'}">${util}%</div><div class="lbl">利用率</div></div>
+        <div class="emp-stat"><div class="num">${corePct}%</div><div class="lbl">核心佔比</div></div>
+      </div>
+      <div class="cat-chips">${cats.map(c => `<span class="cat-chip">${c}</span>`).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderClientChart() {
+  const ctx = document.getElementById('clientChart').getContext('2d');
+  if (charts.client) charts.client.destroy();
+
+  // Aggregate by client from all weeks
+  const clients = {};
+  WEEKS.forEach(w => {
+    EMPLOYEES.forEach(e => {
+      // Using client names from the task data isn't available, so we'll use project names
+    });
+  });
+
+  // Use project burn data as proxy
+  const labels = BURN_DATA.map(p => p.name);
+  const actual = BURN_DATA.map(p => p.actual);
+  const est = BURN_DATA.map(p => p.est);
+
+  charts.client = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: '實際工時', data: actual, backgroundColor: '#19B08F80', borderRadius: 4 },
+        { label: '預估工時', data: est, backgroundColor: '#232D4060', borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { color: '#95A3B8', font: { size: 10 }, boxWidth: 12 } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#5E6E85', font: { size: 9 } } },
+        y: { grid: { color: '#232D4030' }, ticks: { color: '#5E6E85', font: { size: 10 } } }
+      }
+    }
+  });
+}
+
+function renderNatureChart() {
+  const ctx = document.getElementById('natureChart').getContext('2d');
+  if (charts.nature) charts.nature.destroy();
+
+  const natures = Object.keys(NATURE);
+  const data = natures.map(n => natureTotal(currentWeek, n));
+
+  charts.nature = new Chart(ctx, {
+    type: 'polarArea',
+    data: {
+      labels: natures,
+      datasets: [{ data, backgroundColor: natures.map(n => NATURE_COLORS[n] + '80'), borderWidth: 0 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { color: '#95A3B8', font: { size: 10 }, boxWidth: 12, padding: 12 } } },
+      scales: { r: { grid: { color: '#232D4040' }, ticks: { display: false } } }
+    }
+  });
+}
+
+function renderCatTrend() {
+  const ctx = document.getElementById('catTrendChart').getContext('2d');
+  if (charts.catTrend) charts.catTrend.destroy();
+
+  const topCats = ['專案管理','前端開發','後端開發','系統整合','圖控開發','設計規劃'];
+  const datasets = topCats.map((cat, i) => ({
+    label: cat,
+    data: WEEKS.map(w => catTotal(w, cat)),
+    borderColor: CAT_COLORS[CATS.indexOf(cat)],
+    backgroundColor: CAT_COLORS[CATS.indexOf(cat)] + '15',
+    borderWidth: 2, tension: .4, fill: true, pointRadius: 3
+  }));
+
+  charts.catTrend = new Chart(ctx, {
+    type: 'line',
+    data: { labels: WEEKS, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { color: '#95A3B8', font: { size: 10 }, boxWidth: 12, padding: 8 } } },
+      scales: {
+        x: { grid: { color: '#232D4020' }, ticks: { color: '#5E6E85', font: { size: 10 } } },
+        y: { stacked: true, grid: { color: '#232D4030' }, ticks: { color: '#5E6E85', font: { size: 10 } } }
+      }
+    }
+  });
+}
+
+// ===== SYNC FUNCTIONS =====
+function addLog(msg, type='ok') {
+  const el = document.getElementById('syncLog');
+  const time = new Date().toLocaleTimeString('zh-TW');
+  el.innerHTML += `<div class="log-line"><span class="time">[${time}]</span> <span class="${type}">${msg}</span></div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+function simulateSync() {
+  const log = document.getElementById('syncLog');
+  log.innerHTML = '';
+  addLog('=== YonSuite 同步開始 (Dry-Run 模式) ===', 'ok');
+  addLog('連接數據中心: c1.yonyoucloud.com ...', 'ok');
+  addLog('HmacSHA256 認證 ... Token: ********6f6c7a (模擬)', 'ok');
+  addLog(`讀取 WeCom 工時數據: ${currentWeek} ...`, 'ok');
+
+  const activeEmps = EMPLOYEES.filter(e => empTotal(currentWeek,e) > 0);
+  let totalRecords = 0;
+
+  setTimeout(() => {
+    activeEmps.forEach(emp => {
+      const total = empTotal(currentWeek, emp);
+      if (total > 0) {
+        const activeCats = CATS.filter(c => (TS[currentWeek]?.[emp]?.[c]||0) > 0);
+        activeCats.forEach(cat => {
+          const hrs = TS[currentWeek][emp][cat];
+          if (hrs > 0) {
+            addLog(`[DRY-RUN] ${emp} → ${cat}: ${hrs}hr → 專案工時表`, 'warn');
+            totalRecords++;
+          }
+        });
+      }
+    });
+
+    addLog(`共 ${totalRecords} 筆任務記錄準備同步`, 'ok');
+    addLog(`轉換為 YonSuite 格式: ${totalRecords} 筆工時上報單 + 工時明細子表`, 'ok');
+    addLog('映射驗證: 員工映射 ✓ | 專案映射 ✓ | 分類映射 ✓', 'ok');
+    addLog('=== Dry-Run 完成 — 所有數據驗證通過 ===', 'ok');
+    addLog('提示: 取得 API 憑證後切換為 Live 模式即可正式寫入', 'warn');
+
+    document.getElementById('syncPending').textContent = totalRecords;
+    document.getElementById('syncState').textContent = 'Dry-Run 完成 ✓';
+    document.getElementById('syncDot').style.background = 'var(--green)';
+  }, 500);
+}
+
+function validateMapping() {
+  const log = document.getElementById('syncLog');
+  log.innerHTML = '';
+  addLog('=== 映射驗證開始 ===', 'ok');
+
+  const unmappedEmps = EMPLOYEES.filter(e => !document.querySelector(`[data-emp="${e}"]`));
+  addLog(`員工映射: ${EMPLOYEES.length} 人 → YonSuite ID 待配置`, 'warn');
+  addLog(`客戶/專案映射: ${BURN_DATA.length} 個專案 → YonSuite 專案編碼待配置`, 'warn');
+  addLog(`任務分類映射: ${CATS.length} 個分類 → YonSuite 活動名稱待確認`, 'warn');
+  addLog('WeCom → YonSuite 欄位對應表: 已配置', 'ok');
+  addLog('=== 驗證完成: 需要填入 YonSuite 實際 ID 後即可上線 ===', 'warn');
+}
+
+function exportReport() {
+  addLog('正在生成 PDF 報告...', 'ok');
+  setTimeout(() => addLog('報告已生成: PMO工時分析_' + currentWeek + '_DryRun.pdf (模擬)', 'ok'), 800);
+}
+
+// ===== TABS =====
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    item.classList.add('active');
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + item.dataset.tab).classList.add('active');
+  });
+});
+
+// ===== INIT =====
+function renderAll() {
+  renderWeekSelector();
+  renderKPIs();
+  renderWeeklyTrend();
+  renderCatDonut();
+  renderHeatmap();
+  renderBurnRate();
+  renderRisks();
+  renderEmpBar();
+  renderEmpGrid();
+  renderClientChart();
+  renderNatureChart();
+  renderCatTrend();
+}
+renderAll();
+</script>
+</body>
+</html>

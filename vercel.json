@@ -1,0 +1,16 @@
+{
+  "buildCommand": "",
+  "outputDirectory": "public",
+  "crons": [
+    {
+      "path": "/api/refresh",
+      "schedule": "0 9 * * 0"
+    }
+  ],
+  "env": {
+    "WECOM_DOC_ID": "",
+    "YONSUITE_APP_KEY": "",
+    "YONSUITE_APP_SECRET": "",
+    "YONSUITE_TENANT_ID": ""
+  }
+}

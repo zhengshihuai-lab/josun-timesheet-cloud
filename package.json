@@ -1,0 +1,17 @@
+{
+  "name": "josun-timesheet-cloud",
+  "version": "1.0.0",
+  "description": "JOSUN PMO Timesheet Analytics Dashboard - Vercel deployment",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@vercel/node": "^5.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  }
+}
