@@ -205,6 +205,9 @@ body{font-family:'DM Sans','Noto Sans TC',sans-serif;background:var(--bg);color:
     <div class="nav-item" data-tab="projects" title="專案分析">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
     </div>
+    <div class="nav-item" data-tab="trends" title="趨勢洞察">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    </div>
     <div class="nav-item" data-tab="sync" title="YonSuite 同步">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
     </div>
@@ -334,6 +337,93 @@ body{font-family:'DM Sans','Noto Sans TC',sans-serif;background:var(--bg);color:
         <div class="card animate-in delay-2">
           <div class="card-head"><div class="card-title"><div class="dot" style="background:var(--orange)"></div>跨週趨勢 — 各分類工時變化</div></div>
           <div class="card-body"><div class="chart-wrap"><canvas id="catTrendChart"></canvas></div></div>
+        </div>
+      </div>
+
+      <!-- Trends Insights Tab -->
+      <div class="tab-panel" id="tab-trends">
+        <!-- Controls -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px" class="animate-in">
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:13px;font-weight:600;color:var(--text2)">分析粒度：</span>
+            <div class="week-selector" id="granularitySelector">
+              <button class="week-btn active" onclick="setGranularity('week')">每週</button>
+              <button class="week-btn" onclick="setGranularity('month')">每月</button>
+              <button class="week-btn" onclick="setGranularity('quarter')">每季</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:13px;font-weight:600;color:var(--text2)">預測週數：</span>
+            <div class="week-selector" id="forecastSelector">
+              <button class="week-btn active" onclick="setForecast(2)">+2週</button>
+              <button class="week-btn" onclick="setForecast(4)">+4週</button>
+              <button class="week-btn" onclick="setForecast(8)">+8週</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trend Charts Row -->
+        <div class="grid grid-2 animate-in delay-1">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title"><div class="dot" style="background:var(--josun)"></div>個人工時趨勢與預測</div>
+              <div class="card-badge" id="trendEmpBadge">全員</div>
+            </div>
+            <div class="card-body" style="padding-bottom:8px">
+              <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px" id="empFilterChips"></div>
+              <div class="chart-wrap" style="height:280px"><canvas id="trendForecastChart"></canvas></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title"><div class="dot" style="background:var(--blue)"></div>部門工時對比趨勢</div>
+              <div class="card-badge" id="deptTrendBadge">週维度</div>
+            </div>
+            <div class="card-body"><div class="chart-wrap" style="height:310px"><canvas id="deptTrendChart"></canvas></div></div>
+          </div>
+        </div>
+
+        <!-- Category Trend + Utilization -->
+        <div class="grid grid-32 animate-in delay-2">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title"><div class="dot" style="background:var(--purple)"></div>任務性質趨勢 — 核心 vs 非核心</div>
+              <div class="card-badge" id="natureTrendBadge">週維度</div>
+            </div>
+            <div class="card-body"><div class="chart-wrap" style="height:260px"><canvas id="natureTrendChart"></canvas></div></div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title"><div class="dot" style="background:var(--orange)"></div>利用率分佈</div>
+              <div class="card-badge">基準 40hr</div>
+            </div>
+            <div class="card-body"><div class="chart-wrap" style="height:260px"><canvas id="utilDistChart"></canvas></div></div>
+          </div>
+        </div>
+
+        <!-- Optimization Suggestions -->
+        <div class="card animate-in delay-3" style="margin-top:16px">
+          <div class="card-head">
+            <div class="card-title"><div class="dot" style="background:#19B08F"></div>智慧優化建議</div>
+            <div class="card-badge" id="suggestionCount">分析中</div>
+          </div>
+          <div class="card-body">
+            <div id="suggestionsGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px"></div>
+          </div>
+        </div>
+
+        <!-- Monthly/Quarterly Summary Table -->
+        <div class="card animate-in delay-4" style="margin-top:16px">
+          <div class="card-head">
+            <div class="card-title"><div class="dot" style="background:var(--yellow)"></div>彙總統計表</div>
+            <div class="card-badge" id="summaryTableBadge">每月</div>
+          </div>
+          <div class="card-body" style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:12px" id="summaryTable">
+              <thead id="summaryTableHead"></thead>
+              <tbody id="summaryTableBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -854,6 +944,500 @@ document.querySelectorAll('.nav-item').forEach(item => {
   });
 });
 
+// ===== TREND ANALYSIS ENGINE =====
+let granularity = 'week';
+let forecastWeeks = 2;
+let selectedEmps = new Set(['萌萌','小熊','蒙海','羅潔','Marin','廖嘉良']);
+
+// Week-to-month/quarter mapping
+const WEEK_MONTH = {W19:'5月',W20:'5月',W21:'5月',W22:'5月',W23:'6月',W24:'6月',W25:'6月'};
+const WEEK_QUARTER = {W19:'Q2',W20:'Q2',W21:'Q2',W22:'Q2',W23:'Q2',W24:'Q2',W25:'Q2'};
+
+// Linear regression for forecasting
+function linearRegression(data) {
+  const n = data.length;
+  if (n < 2) return { slope: 0, intercept: data[0] || 0 };
+  let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+  for (let i = 0; i < n; i++) {
+    sumX += i; sumY += data[i]; sumXY += i * data[i]; sumX2 += i * i;
+  }
+  const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+  const intercept = (sumY - slope * sumX) / n;
+  return { slope, intercept };
+}
+
+function forecast(data, ahead) {
+  const { slope, intercept } = linearRegression(data);
+  const result = [];
+  for (let i = 0; i < ahead; i++) {
+    const val = Math.max(0, intercept + slope * (data.length + i));
+    result.push(Math.round(val * 10) / 10);
+  }
+  return result;
+}
+
+function aggregateByPeriod(data, periodMap) {
+  const agg = {};
+  for (const [week, employees] of Object.entries(data)) {
+    const period = periodMap[week] || week;
+    if (!agg[period]) agg[period] = {};
+    for (const [emp, cats] of Object.entries(employees)) {
+      if (!agg[period][emp]) agg[period][emp] = {};
+      for (const [cat, hrs] of Object.entries(cats)) {
+        agg[period][emp][cat] = (agg[period][emp][cat] || 0) + hrs;
+      }
+    }
+  }
+  return agg;
+}
+
+function setGranularity(g) {
+  granularity = g;
+  document.querySelectorAll('#granularitySelector .week-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  renderTrends();
+}
+
+function setForecast(f) {
+  forecastWeeks = f;
+  document.querySelectorAll('#forecastSelector .week-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  renderTrends();
+}
+
+function toggleEmpFilter(emp) {
+  if (selectedEmps.has(emp)) selectedEmps.delete(emp);
+  else selectedEmps.add(emp);
+  if (selectedEmps.size === 0) selectedEmps = new Set(EMPLOYEES);
+  renderEmpFilterChips();
+  renderTrendForecast();
+}
+
+function renderEmpFilterChips() {
+  const el = document.getElementById('empFilterChips');
+  const activeEmps = EMPLOYEES.filter(e => empTotal(WEEKS[WEEKS.length-1], e) > 0 || empTotal(WEEKS[WEEKS.length-2], e) > 0);
+  el.innerHTML = `<div class="cat-chip" style="cursor:pointer;${selectedEmps.size===activeEmps.length?'background:var(--josun);color:#fff;border-color:var(--josun)':''}" onclick="selectedEmps=new Set(EMPLOYEES);renderEmpFilterChips();renderTrendForecast()">全選</div>` +
+    activeEmps.map(e => {
+      const active = selectedEmps.has(e);
+      return `<div class="cat-chip" style="cursor:pointer;${active?'background:var(--surface3);color:var(--text);border-color:var(--border2)':''}" onclick="toggleEmpFilter('${e}')">${e}</div>`;
+    }).join('');
+}
+
+function getPeriodLabels() {
+  if (granularity === 'week') return WEEKS;
+  if (granularity === 'month') return [...new Set(WEEKS.map(w => WEEK_MONTH[w]))];
+  return [...new Set(WEEKS.map(w => WEEK_QUARTER[w]))];
+}
+
+function getPeriodData() {
+  if (granularity === 'week') return TS;
+  const map = granularity === 'month' ? WEEK_MONTH : WEEK_QUARTER;
+  return aggregateByPeriod(TS, map);
+}
+
+function renderTrendForecast() {
+  const ctx = document.getElementById('trendForecastChart').getContext('2d');
+  if (charts.trendForecast) charts.trendForecast.destroy();
+
+  const periodData = getPeriodData();
+  const labels = getPeriodLabels();
+  const activeEmps = EMPLOYEES.filter(e => selectedEmps.has(e));
+
+  // Build historical data
+  const datasets = [];
+  activeEmps.forEach((emp, idx) => {
+    const historical = labels.map(p => {
+      const d = periodData[p]?.[emp];
+      if (!d) return 0;
+      return Object.values(d).reduce((s, v) => s + v, 0);
+    });
+
+    // Forecast
+    const fc = forecast(historical, forecastWeeks);
+    const fullData = [...historical, ...fc];
+    const fcLabels = Array(fc.length).fill(null);
+
+    const color = CAT_COLORS[idx % CAT_COLORS.length];
+
+    // Historical line
+    datasets.push({
+      label: emp,
+      data: fullData,
+      borderColor: color,
+      backgroundColor: color + '15',
+      borderWidth: 2, pointRadius: 3, pointHoverRadius: 5,
+      tension: 0.3, fill: false
+    });
+
+    // Forecast dashed line
+    if (fc.length > 0) {
+      const fcData = Array(historical.length - 1).fill(null).concat([historical[historical.length - 1]], fc);
+      datasets.push({
+        label: emp + ' (預測)',
+        data: fcData,
+        borderColor: color + '80',
+        borderWidth: 1.5, borderDash: [6, 4],
+        pointRadius: 0, tension: 0.3, fill: false
+      });
+    }
+  });
+
+  // Add forecast labels
+  const allLabels = [...labels];
+  for (let i = 1; i <= forecastWeeks; i++) {
+    allLabels.push('W' + (parseInt(WEEKS[WEEKS.length - 1].substring(1)) + i) + ' (預)');
+  }
+
+  charts.trendForecast = new Chart(ctx, {
+    type: 'line',
+    data: { labels: allLabels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#95A3B8', font: { size: 9 }, boxWidth: 10, padding: 6, filter: item => !item.text.includes('預測') } }
+      },
+      scales: {
+        x: { grid: { color: '#232D4020' }, ticks: { color: '#5E6E85', font: { size: 9 }, maxRotation: 45 } },
+        y: { grid: { color: '#232D4030' }, ticks: { color: '#5E6E85', font: { size: 10 } }, beginAtZero: true }
+      }
+    }
+  });
+  document.getElementById('trendEmpBadge').textContent = selectedEmps.size + ' 人';
+}
+
+function renderDeptTrend() {
+  const ctx = document.getElementById('deptTrendChart').getContext('2d');
+  if (charts.deptTrend) charts.deptTrend.destroy();
+
+  const periodData = getPeriodData();
+  const labels = getPeriodLabels();
+
+  // SI employees (original 16) vs AC employees (劉彥儒, 王一青)
+  const siEmps = EMPLOYEES.filter(e => !['劉彥儒','王一青'].includes(e));
+  const acEmps = ['劉彥儒','王一青'];
+
+  const siData = labels.map(p => {
+    return siEmps.reduce((s, e) => {
+      const d = periodData[p]?.[e];
+      return s + (d ? Object.values(d).reduce((a, v) => a + v, 0) : 0);
+    }, 0);
+  });
+
+  const acData = labels.map(p => {
+    return acEmps.reduce((s, e) => {
+      const d = periodData[p]?.[e];
+      return s + (d ? Object.values(d).reduce((a, v) => a + v, 0) : 0);
+    }, 0);
+  });
+
+  // Averages
+  const siAvg = siData.map(v => Math.round(v / siEmps.filter(e => empTotal(WEEKS[WEEKS.length-1],e)>0).length));
+  const acAvg = acData.map(v => Math.round(v / acEmps.length));
+
+  charts.deptTrend = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: '系統集成部 (人均)', data: siAvg, backgroundColor: '#19B08F80', borderRadius: 6, order: 2 },
+        { label: '自動控制部 (人均)', data: acAvg, backgroundColor: '#7C5CFC80', borderRadius: 6, order: 2 },
+        { label: 'SI 部門總計', data: siData, type: 'line', borderColor: '#19B08F', borderWidth: 2, pointRadius: 4, tension: 0.3, fill: false, order: 1 },
+        { label: 'AC 部門總計', data: acData, type: 'line', borderColor: '#7C5CFC', borderWidth: 2, pointRadius: 4, tension: 0.3, fill: false, order: 1 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { color: '#95A3B8', font: { size: 10 }, boxWidth: 12, padding: 8 } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#5E6E85', font: { size: 10 } } },
+        y: { grid: { color: '#232D4030' }, ticks: { color: '#5E6E85', font: { size: 10 } }, beginAtZero: true }
+      }
+    }
+  });
+  const gLabel = granularity === 'week' ? '週維度' : granularity === 'month' ? '月維度' : '季維度';
+  document.getElementById('deptTrendBadge').textContent = gLabel;
+}
+
+function renderNatureTrend() {
+  const ctx = document.getElementById('natureTrendChart').getContext('2d');
+  if (charts.natureTrend) charts.natureTrend.destroy();
+
+  const periodData = getPeriodData();
+  const labels = getPeriodLabels();
+  const natures = Object.keys(NATURE);
+
+  const datasets = natures.map((n, i) => ({
+    label: n,
+    data: labels.map(p => {
+      const cats = NATURE[n] || [];
+      let total = 0;
+      for (const emp of Object.values(periodData[p] || {})) {
+        for (const cat of cats) total += (emp[cat] || 0);
+      }
+      return total;
+    }),
+    borderColor: NATURE_COLORS[n],
+    backgroundColor: NATURE_COLORS[n] + '20',
+    borderWidth: 2, tension: 0.4, fill: true, pointRadius: 3
+  }));
+
+  charts.natureTrend = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'bottom', labels: { color: '#95A3B8', font: { size: 10 }, boxWidth: 12, padding: 8 } } },
+      scales: {
+        x: { grid: { color: '#232D4020' }, ticks: { color: '#5E6E85', font: { size: 10 } } },
+        y: { stacked: true, grid: { color: '#232D4030' }, ticks: { color: '#5E6E85', font: { size: 10 } } }
+      }
+    }
+  });
+  const gLabel = granularity === 'week' ? '週維度' : granularity === 'month' ? '月維度' : '季維度';
+  document.getElementById('natureTrendBadge').textContent = gLabel;
+}
+
+function renderUtilDist() {
+  const ctx = document.getElementById('utilDistChart').getContext('2d');
+  if (charts.utilDist) charts.utilDist.destroy();
+
+  const activeEmps = EMPLOYEES.filter(e => empTotal(WEEKS[WEEKS.length-1], e) > 0);
+  const utils = activeEmps.map(e => Math.round((empTotal(WEEKS[WEEKS.length-1], e) / 40) * 100));
+
+  // Bucket into ranges
+  const buckets = {'<60%': 0, '60-80%': 0, '80-100%': 0, '100-110%': 0, '>110%': 0};
+  utils.forEach(u => {
+    if (u < 60) buckets['<60%']++;
+    else if (u < 80) buckets['60-80%']++;
+    else if (u < 100) buckets['80-100%']++;
+    else if (u <= 110) buckets['100-110%']++;
+    else buckets['>110%']++;
+  });
+
+  const colors = ['#F06060', '#F0C040', '#19B08F', '#1EAAE0', '#7C5CFC'];
+
+  charts.utilDist = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: Object.keys(buckets),
+      datasets: [{ data: Object.values(buckets), backgroundColor: colors.map(c => c + '80'), borderColor: colors, borderWidth: 1, borderRadius: 6 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#95A3B8', font: { size: 11 } } },
+        y: { grid: { color: '#232D4030' }, ticks: { color: '#5E6E85', font: { size: 10 }, stepSize: 1 }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+function generateSuggestions() {
+  const suggestions = [];
+  const lastWeek = WEEKS[WEEKS.length - 1];
+  const prevWeek = WEEKS[WEEKS.length - 2];
+  const activeEmps = EMPLOYEES.filter(e => empTotal(lastWeek, e) > 0);
+
+  // 1. Workload imbalance
+  const totals = activeEmps.map(e => ({ name: e, hrs: empTotal(lastWeek, e) }));
+  const maxEmp = totals.reduce((a, b) => a.hrs > b.hrs ? a : b);
+  const minEmp = totals.reduce((a, b) => a.hrs < b.hrs ? a : b);
+  if (maxEmp.hrs - minEmp.hrs > 20) {
+    suggestions.push({
+      type: 'warning', icon: '⚖️', title: '工時分配不均',
+      desc: `${maxEmp.name}(${maxEmp.hrs}hr) 與 ${minEmp.name}(${minEmp.hrs}hr) 差距達 ${maxEmp.hrs - minEmp.hrs} 小時。建議將部分任務從高負載員工轉移給低工時員工，提升團隊整體利用率。`,
+      action: `建議將 ${maxEmp.name} 的 ${(maxEmp.hrs - 40) > 0 ? (maxEmp.hrs - 40) : 5} 小時行政/溝通類任務轉移給 ${minEmp.name}`
+    });
+  }
+
+  // 2. Core ratio declining
+  const coreNow = natureTotal(lastWeek, '核心開發');
+  const corePrev = natureTotal(prevWeek, '核心開發');
+  const totalNow = weekTotal(lastWeek);
+  const totalPrev = weekTotal(prevWeek);
+  const coreRatioNow = totalNow ? coreNow / totalNow : 0;
+  const coreRatioPrev = totalPrev ? corePrev / totalPrev : 0;
+  if (coreRatioNow < coreRatioPrev - 0.05) {
+    suggestions.push({
+      type: 'danger', icon: '📉', title: '核心開發佔比下降',
+      desc: `核心開發工時佔比從 ${(coreRatioPrev * 100).toFixed(0)}% 降至 ${(coreRatioNow * 100).toFixed(0)}%，降幅 ${((coreRatioPrev - coreRatioNow) * 100).toFixed(1)} 個百分點。非核心活動（行政、溝通）可能侵蝕產能。`,
+      action: '建議審查本週行政事務和內部溝通的工時，識別可精簡的會議或流程'
+    });
+  } else if (coreRatioNow >= 0.5) {
+    suggestions.push({
+      type: 'success', icon: '✅', title: '核心開發佔比健康',
+      desc: `核心開發工時佔比 ${(coreRatioNow * 100).toFixed(0)}%，高於 50% 基準線。團隊產能集中在高價值活動上。`,
+      action: '維持當前任務分配策略，持續追蹤'
+    });
+  }
+
+  // 3. Emergency ratio
+  const emergencyNow = catTotal(lastWeek, '突發狀況');
+  const emergencyRatio = totalNow ? emergencyNow / totalNow : 0;
+  if (emergencyRatio > 0.1) {
+    suggestions.push({
+      type: 'danger', icon: '🚨', title: '突發狀況比例過高',
+      desc: `本週「突發狀況」工時達 ${emergencyNow} 小時 (${(emergencyRatio * 100).toFixed(1)}%)，超過 10% 警戒線。持續的高突發比例意味著系統穩定性問題或預防性維護不足。`,
+      action: '建議根因分析：排查哪些專案/客戶產生最多突發需求，考慮增加預防性維護工時'
+    });
+  }
+
+  // 4. Fragmentation
+  const highFrag = activeEmps.filter(e => {
+    const cats = CATS.filter(c => (TS[lastWeek]?.[e]?.[c] || 0) > 0);
+    return cats.length >= 6;
+  });
+  if (highFrag.length > 0) {
+    suggestions.push({
+      type: 'warning', icon: '🔀', title: '任務碎片化警示',
+      desc: `${highFrag.join('、')} 等 ${highFrag.length} 人本週涉及 6 個以上任務分類。高碎片化會降低深度工作效率，增加認知切換成本。`,
+      action: '建議為高碎片化員工規劃「專注日」——每週至少 2 天集中處理 1-2 個核心任務'
+    });
+  }
+
+  // 5. Overtime risk
+  const overtimers = activeEmps.filter(e => empTotal(lastWeek, e) > 44);
+  if (overtimers.length > 0) {
+    suggestions.push({
+      type: 'warning', icon: '⏰', title: '超時工作風險',
+      desc: `${overtimers.join('、')} 本週工時超過 44 小時。持續超時會增加倦怠風險和離職概率，長期來看反而降低產出。`,
+      action: '短期：確認是否為臨時衝刺。長期：評估是否需要增加人力或調整專案排程'
+    });
+  }
+
+  // 6. Undertimers
+  const undertimers = activeEmps.filter(e => { const t = empTotal(lastWeek, e); return t > 0 && t < 28; });
+  if (undertimers.length > 0) {
+    suggestions.push({
+      type: 'info', icon: '📋', title: '工時偏低提醒',
+      desc: `${undertimers.join('、')} 本週工時低於 28 小時（利用率 <70%）。可能原因：休假、任務分配不足、或新員工熟悉期。`,
+      action: undertimers.includes('王笑一') || undertimers.includes('裴文') ? '新員工熟悉期屬正常，建議逐步增加任務負載' : '確認是否有休假或任務分配問題'
+    });
+  }
+
+  // 7. Trend projection
+  const weekTotals = WEEKS.map(w => weekTotal(w));
+  const { slope } = linearRegression(weekTotals);
+  if (slope < -2) {
+    suggestions.push({
+      type: 'warning', icon: '📊', title: '整體工時下降趨勢',
+      desc: `團隊總工時呈下降趨勢（每週平均減少 ${Math.abs(slope).toFixed(1)} 小時）。若持續 4 週，預計總工時將減少 ${Math.abs(slope * 4).toFixed(0)} 小時。`,
+      action: '排查原因：是否為季節性因素、專案空窗期、或人員流動導致'
+    });
+  } else if (slope > 2) {
+    suggestions.push({
+      type: 'success', icon: '📈', title: '整體工時穩步上升',
+      desc: `團隊總工時呈上升趨勢（每週平均增加 ${slope.toFixed(1)} 小時），反映專案推進加速。`,
+      action: '注意監控是否接近團隊產能上限，提前規劃資源調度'
+    });
+  }
+
+  // 8. AC department health
+  const acTotal = ['劉彥儒','王一青'].reduce((s, e) => s + empTotal(lastWeek, e), 0);
+  const acCore = ['劉彥儒','王一青'].reduce((s, e) => {
+    return s + ['自控系統設計','PLC程式開發','DDC控制器開發','圖控與人機介面','現場施工與調試','儀電工程']
+      .reduce((a, c) => a + (TS[lastWeek]?.[e]?.[c] || 0), 0);
+  }, 0);
+  const acCoreRatio = acTotal ? acCore / acTotal : 0;
+  if (acTotal > 0) {
+    suggestions.push({
+      type: acCoreRatio > 0.5 ? 'success' : 'info', icon: '🏗️', title: '自動控制部健康度',
+      desc: `AC 部門本週總工時 ${acTotal} 小時，核心技術佔比 ${(acCoreRatio * 100).toFixed(0)}%。${acCoreRatio > 0.5 ? '產能集中度高，技術產出健康。' : '非核心活動佔比較高，可優化任務分配。'}`,
+      action: acCoreRatio > 0.5 ? 'AC 部門運作良好，持續追蹤新專案承接能力' : '建議減少 AC 部門行政負擔，讓更多時間投入技術開發'
+    });
+  }
+
+  // Render
+  const grid = document.getElementById('suggestionsGrid');
+  const typeColors = { danger: 'var(--red)', warning: 'var(--yellow)', success: 'var(--green)', info: 'var(--blue)' };
+  const typeBg = { danger: 'rgba(240,96,96,.06)', warning: 'rgba(240,192,64,.06)', success: 'rgba(25,176,143,.06)', info: 'rgba(30,170,224,.06)' };
+
+  grid.innerHTML = suggestions.map(s => `
+    <div style="background:${typeBg[s.type]};border:1px solid var(--border);border-radius:12px;padding:16px;border-left:3px solid ${typeColors[s.type]}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:18px">${s.icon}</span>
+        <span style="font-size:13px;font-weight:700">${s.title}</span>
+      </div>
+      <div style="font-size:11px;color:var(--text2);line-height:1.6;margin-bottom:10px">${s.desc}</div>
+      <div style="font-size:11px;color:var(--josun);font-weight:600;padding:6px 10px;background:rgba(25,176,143,.08);border-radius:6px;display:inline-block">💡 ${s.action}</div>
+    </div>
+  `).join('');
+
+  document.getElementById('suggestionCount').textContent = suggestions.length + ' 項建議';
+}
+
+function renderSummaryTable() {
+  const periodData = getPeriodData();
+  const labels = getPeriodLabels();
+  const activeEmps = EMPLOYEES.filter(e => {
+    return WEEKS.some(w => empTotal(w, e) > 0);
+  });
+
+  const gLabel = granularity === 'week' ? '每週' : granularity === 'month' ? '每月' : '每季';
+  document.getElementById('summaryTableBadge').textContent = gLabel;
+
+  // Header
+  const head = document.getElementById('summaryTableHead');
+  head.innerHTML = `<tr style="border-bottom:2px solid var(--border)">
+    <th style="text-align:left;padding:10px 8px;color:var(--text2);font-weight:600">員工</th>
+    ${labels.map(l => `<th style="text-align:center;padding:10px 6px;color:var(--text2);font-weight:600">${l}</th>`).join('')}
+    <th style="text-align:center;padding:10px 8px;color:var(--josun);font-weight:700">平均</th>
+    <th style="text-align:center;padding:10px 8px;color:var(--blue);font-weight:700">趨勢</th>
+  </tr>`;
+
+  // Body
+  const body = document.getElementById('summaryTableBody');
+  body.innerHTML = activeEmps.map(emp => {
+    const vals = labels.map(p => {
+      const d = periodData[p]?.[emp];
+      return d ? Object.values(d).reduce((s, v) => s + v, 0) : 0;
+    });
+    const avg = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+    const { slope } = linearRegression(vals);
+    const trendIcon = slope > 1 ? '📈' : slope < -1 ? '📉' : '➡️';
+    const trendColor = slope > 1 ? 'var(--green)' : slope < -1 ? 'var(--red)' : 'var(--text3)';
+
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px;font-weight:500;font-size:12px">${emp}</td>
+      ${vals.map(v => {
+        const util = Math.round(v / 40 * 100);
+        const bg = v === 0 ? '' : v >= 40 ? 'rgba(25,176,143,.08)' : v >= 30 ? 'rgba(240,192,64,.08)' : 'rgba(240,96,96,.08)';
+        return `<td style="text-align:center;padding:8px 6px;font-family:'JetBrains Mono',monospace;font-size:11px;background:${bg}">${v || '–'}</td>`;
+      }).join('')}
+      <td style="text-align:center;padding:8px;font-weight:700;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--josun)">${avg.toFixed(1)}</td>
+      <td style="text-align:center;padding:8px;color:${trendColor};font-size:14px">${trendIcon}</td>
+    </tr>`;
+  }).join('');
+
+  // Totals row
+  const totalVals = labels.map(p => {
+    return activeEmps.reduce((s, e) => {
+      const d = periodData[p]?.[e];
+      return s + (d ? Object.values(d).reduce((a, v) => a + v, 0) : 0);
+    }, 0);
+  });
+  const totalAvg = totalVals.length ? (totalVals.reduce((a, b) => a + b, 0) / totalVals.length) : 0;
+  body.innerHTML += `<tr style="border-top:2px solid var(--border);font-weight:700">
+    <td style="padding:10px 8px;color:var(--text);font-size:12px">部門合計</td>
+    ${totalVals.map(v => `<td style="text-align:center;padding:10px 6px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text)">${v}</td>`).join('')}
+    <td style="text-align:center;padding:10px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--josun)">${totalAvg.toFixed(0)}</td>
+    <td></td>
+  </tr>`;
+}
+
+function renderTrends() {
+  renderEmpFilterChips();
+  renderTrendForecast();
+  renderDeptTrend();
+  renderNatureTrend();
+  renderUtilDist();
+  generateSuggestions();
+  renderSummaryTable();
+}
+
 // ===== INIT =====
 function renderAll() {
   renderWeekSelector();
@@ -868,6 +1452,7 @@ function renderAll() {
   renderClientChart();
   renderNatureChart();
   renderCatTrend();
+  renderTrends();
 }
 renderAll();
 </script>
