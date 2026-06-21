@@ -1,6 +1,20 @@
 {
   "buildCommand": "",
   "outputDirectory": "public",
+  "functions": {
+    "api/refresh.ts": {
+      "maxDuration": 60,
+      "memory": 256
+    },
+    "api/sync.ts": {
+      "maxDuration": 120,
+      "memory": 256
+    },
+    "api/data.ts": {
+      "maxDuration": 10,
+      "memory": 128
+    }
+  },
   "crons": [
     {
       "path": "/api/refresh",
@@ -9,8 +23,17 @@
   ],
   "env": {
     "WECOM_DOC_ID": "",
+    "WECOM_CORP_ID": "",
+    "WECOM_API_SECRET": "",
+    "WECOM_AGENT_ID": "",
+    "WECOM_ACCESS_TOKEN": "",
     "YONSUITE_APP_KEY": "",
     "YONSUITE_APP_SECRET": "",
-    "YONSUITE_TENANT_ID": ""
+    "YONSUITE_TENANT_ID": "",
+    "YONSUITE_DATA_CENTER": "c1.yonyoucloud.com",
+    "SYNC_MODE": "dry-run",
+    "SUPABASE_URL": "",
+    "SUPABASE_ANON_KEY": "",
+    "CACHE_FILE_PATH": "data/timesheet-cache.json"
   }
 }
