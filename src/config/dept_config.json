@@ -1,0 +1,308 @@
+{
+  "version": "2.0",
+  "description": "PMO 工時管理系統 — 多部門配置檔",
+  "docid": "dcBVaHSF2V18DkkKZO9ZyO614Vx5ekdFfzkHVlbwYp006PhbJGctJSQFgUpY3AHLrW8PUPpjLOtOCVcOzqvAXQjg",
+  "url": "https://doc.weixin.qq.com/smartsheet/s3_AK8AtnheAKcCNdh5i8b3ARc2aJzMV_a?scode=AOIA0wcnABA8Sd4CNkAK8AtnheAKc",
+
+  "pmo_shared": {
+    "description": "PMO 跨部門統一主檔",
+    "員工檔": { "sheet_id": "2UklZL", "note": "統一員工檔(41人), 含所屬部門/組別/職稱/個人分頁ID, 2026-06-22建立" },
+    "專案主檔": { "sheet_id": "bwFSJ7", "note": "統一專案主檔, 欄位已建立, 待遷移SI/SE/AC專案數據, 2026-06-22建立" },
+    "成員組合表": { "sheet_id": "6dEPwl", "note": "統一成員組合表, 欄位已建立, 待遷移SI/SE/AC成員數據, 2026-06-22建立" },
+    "工時明細總表": { "sheet_id": "4oDj60", "alt_ids": ["2lm6yu"] },
+    "總工時填報表": { "sheet_id": "Kq3Mqp", "alt_ids": ["tUZrJM"] }
+  },
+
+  "departments": {
+    "系統集成部": {
+      "code": "SI",
+      "name": "系統集成部",
+      "folder_number": "集團16",
+      "wecom_folder": "/Users/chengshihhuai/Library/Containers/com.tencent.WeWorkMac/Data/WeDrive/上海御大/集團16_系統集成部",
+      "pmo_folder": "/Users/chengshihhuai/Library/Containers/com.tencent.WeWorkMac/Data/WeDrive/上海御大/集團19_PMO管理部",
+      "supervisor": {
+        "name": "廖嘉良",
+        "role": "總監",
+        "notify_chatId": "4b51a6a3-08c9-45c1-86ea-37a6f62e8050",
+        "notify_channel": "Team_集团总管理部"
+      },
+      "dashboard_path": "/Users/chengshihhuai/Library/Containers/com.tencent.WeWorkMac/Data/WeDrive/上海御大/集團19_PMO管理部/PMO決策儀表板.html",
+      "tables": {
+        "專案主檔": { "sheet_id": "hQyTFd" },
+        "員工檔": { "sheet_id": "vK7XLR", "note": "共用 PMO 員工檔，用「所屬部門」和「預設部門」篩選" },
+        "成員組合表": { "sheet_id": "jpMxLD" }
+      },
+      "employees": [
+        { "name": "萌萌", "sheet_id": "rfDSfZ", "prefix": "萌" },
+        { "name": "小熊", "sheet_id": "uKAD8j", "prefix": "熊" },
+        { "name": "蒙海", "sheet_id": "cliuJh", "prefix": "蒙" },
+        { "name": "羅潔", "sheet_id": "k9mrta", "prefix": "羅" },
+        { "name": "Marin", "sheet_id": "Ok2xzA", "prefix": "M" },
+        { "name": "肖斌", "sheet_id": "9iAXfJ", "prefix": "肖" },
+        { "name": "廖嘉良", "sheet_id": "qrx514", "prefix": "廖" },
+        { "name": "天舒", "sheet_id": "7txXO4", "prefix": "天" },
+        { "name": "雪可", "sheet_id": "1NOej5", "prefix": "雪" },
+        { "name": "馨蕊", "sheet_id": "BRdrY5", "prefix": "馨" },
+        { "name": "慧婷", "sheet_id": "tXAlbf", "prefix": "慧" },
+        { "name": "宇捷", "sheet_id": "lSLbTK", "prefix": "宇" },
+        { "name": "秉睿", "sheet_id": "HK6Tlw", "prefix": "秉" },
+        { "name": "實習生", "sheet_id": "teNIy7", "prefix": "實", "note": "原名 vQxH6Y，API 返回 teNIy7 待確認" },
+        { "name": "王笑一", "sheet_id": "IfxE9p", "prefix": "笑", "emp_id": "EMP014", "email": "triumph@josun-cn.com", "role": "实习生", "dept": "前/后端開發部", "status": "completed", "note": "分頁已建立，下拉選項(17客戶/11大類/12細項)已填入，4筆SEED記錄已加入(2026-06-12)" },
+        { "name": "裴文", "sheet_id": "LWVE2t", "prefix": "裴", "emp_id": "EMP015", "email": "vincent@josun-cn.com", "role": "一般員工", "dept": "设计部", "status": "completed", "note": "分頁已建立，下拉選項(17客戶/11大類/12細項)已填入，4筆SEED記錄已加入(2026-06-12)" },
+        { "name": "周鵬", "sheet_id": "qhMhAL", "prefix": "周", "role": "項目經理", "dept": "項目管理組", "source": "組織架構圖 2026-06-22" },
+        { "name": "于歐洋", "sheet_id": "WYAS6C", "prefix": "于", "role": "主任工程師", "dept": "項目管理組", "source": "組織架構圖" },
+        { "name": "陸衍瀅", "sheet_id": "QlXueh", "prefix": "陸", "role": "主任工程師", "dept": "項目管理組", "source": "組織架構圖" },
+        { "name": "缪顧贇", "sheet_id": "K1IOqb", "prefix": "缪", "role": "工程師", "dept": "項目管理組", "source": "組織架構圖" },
+        { "name": "童志淳", "sheet_id": "ud1Jb1", "prefix": "童", "role": "集成助工師", "dept": "系統集成組", "source": "組織架構圖" },
+        { "name": "韓艷峰", "sheet_id": "j8M6bl", "prefix": "韓", "role": "集成顧問", "dept": "技術標準化組", "source": "組織架構圖" }
+      ],
+      "task_categories": {
+        "任務大類": [
+          "行政事務", "內部溝通", "專案管理", "客戶接洽", "出差考察",
+          "突發狀況", "項目立案與規劃", "功能立項與深化設計", "安裝工程管理",
+          "系統場景搭建", "系統驗證與測試", "系統交付", "運維與新需求"
+        ],
+        "任務細項": [
+          "文書處理/報銷/採購申報/週報撰寫",
+          "部門會議/跨組別溝通/教育培訓",
+          "進度管控/現場監理/外包廠商協調",
+          "需求訪談/技術方案撰寫/產品展示",
+          "現場勘查/長途出差(含交通時間)",
+          "非預期之緊急支援或故障排除",
+          "專案啟動/可行性評估/專案計劃書編製",
+          "深化設計/功能規格確認/施工圖繪製",
+          "施工排程/現場監工/安裝品質管控",
+          "系統環境架設/場景配置/聯調準備",
+          "FAT/SAT執行/功能驗證/缺失追蹤",
+          "竣工資料交付/教育訓練/保固啟動",
+          "維運支援/需求變更/系統優化",
+          "休假"
+        ],
+        "性質分類": {
+          "核心開發": ["系統場景搭建"],
+          "非專案工時": ["行政事務", "內部溝通"],
+          "管理工時": ["專案管理"],
+          "對外工時": ["客戶接洽", "出差考察"],
+          "工程工時": ["安裝工程管理"],
+          "項目生命週期": ["項目立案與規劃", "功能立項與深化設計", "系統驗證與測試", "系統交付", "運維與新需求"],
+          "異常工時": ["突發狀況"]
+        }
+      },
+      "clients": [
+        "川奇电子", "川奇电子老厂", "AVC", "鵬鼎PA02", "鵬鼎PA06",
+        "鵬鼎PA03", "昆山耐创科技", "耀登科技", "群光电子", "联茂一期",
+        "联茂二期", "普英高分子", "赛芈科技", "超毅电子", "华泰电子", "印尼和硕Lot2",
+        "高求美达"
+      ],
+      "risk_rules": {
+        "fragmentation_threshold": 3,
+        "emergency_ratio_threshold": 0.10,
+        "spof_threshold": 0.50
+      }
+    },
+
+    "系統工程部": {
+      "code": "SE",
+      "name": "系統工程部",
+      "folder_number": "集團15",
+      "wecom_folder": "/Users/chengshihhuai/Library/Containers/com.tencent.WeWorkMac/Data/WeDrive/上海御大/集團15_系統工程部",
+      "pmo_folder": "/Users/chengshihhuai/Library/Containers/com.tencent.WeWorkMac/Data/WeDrive/上海御大/集團19_PMO管理部",
+      "supervisor": {
+        "name": "待確認（週三會議）",
+        "role": "主管",
+        "notify_chatId": "待確認",
+        "notify_channel": "待確認"
+      },
+      "dashboard_path": "待建立",
+      "tables": {
+        "專案主檔": { "sheet_id": "njKFtK" },
+        "員工檔": { "sheet_id": "EetVlr" },
+        "成員組合表": { "sheet_id": "OTe4bV" }
+      },
+      "org_structure": {
+        "description": "大陆系统工程部",
+        "teams": [
+          { "name": "御能", "headcount_existing": 11, "headcount_new": 3, "note": "現有11人+新增3人" },
+          { "name": "蘇州明翰", "headcount": 5, "note": "5人" }
+        ],
+        "total_headcount": "19人（含新增）",
+        "notes": [
+          "预估借调3~4位到泰国项目支援，还在确认中",
+          "26年采购独立出来",
+          "外聘师傅：依据项目需求增减"
+        ],
+        "source": "系統工程部_組織架構及人員工作能力清單_20260420.xlsx"
+      },
+      "job_levels": ["AE_助理工程師", "DE_副工程師", "E_工程師", "SE_高級工程師", "CE_主任工程師", "DPM_項目副理", "PM_項目經理", "PD_項目總監"],
+      "employees": [
+        { "name": "李強", "sheet_id": "EDvwkx", "role": "助理工程師", "dept": "工程組", "source": "組織架構圖 2026-06-22" },
+        { "name": "王業權", "sheet_id": "IzyUxF", "role": "助理工程師", "dept": "工程組", "source": "組織架構圖" },
+        { "name": "唐傳永", "sheet_id": "mLXvwB", "role": "助理工程師", "dept": "工程組", "source": "組織架構圖" },
+        { "name": "皇甫小博", "sheet_id": "5cAmmD", "role": "助理工程師", "dept": "工程組", "source": "組織架構圖" },
+        { "name": "汪子軒", "sheet_id": "pHIxk9", "role": "助理工程師", "dept": "工程組", "source": "組織架構圖" },
+        { "name": "焦明媛", "sheet_id": "yAY3jQ", "role": "項目專員", "dept": "項目組", "source": "組織架構圖" },
+        { "name": "張新怡", "sheet_id": "cgwMgk", "role": "項目專員", "dept": "項目組", "source": "組織架構圖" },
+        { "name": "唐天生", "sheet_id": "CxM2P4", "role": "工務經理", "dept": "施工組", "source": "組織架構圖" },
+        { "name": "張俊", "sheet_id": "tjED0j", "role": "工務副理", "dept": "施工組", "source": "組織架構圖" },
+        { "name": "唐天意", "sheet_id": "ENnIWq", "role": "負責人", "dept": "印尼分公司", "source": "組織架構圖" }
+      ],
+      "task_categories": {
+        "任務大類": [
+          "行政事務", "內部溝通", "專案管理", "客戶接洽", "出差考察",
+          "突發狀況", "工程計劃與成本控管", "文件與圖面管理", "施工管理與物料追蹤",
+          "廠商與分包商管理", "交付與驗收", "自動控制專業", "系統集成與通訊",
+          "品質與風險管理", "教育培訓與學習"
+        ],
+        "任務細項": [
+          "文書處理與報銷", "採購申報與資產管理", "週報與月報撰寫",
+          "部門會議與跨組別協調", "教育培訓與技術分享",
+          "專案進度管控與里程碑追蹤", "跨部門技術協調與資源調度", "外包廠商管理與驗收作業",
+          "技術需求訪談與方案撰寫", "簡報展示與技術諮詢",
+          "現場勘查與施工條件評估", "長途出差含交通時間",
+          "非預期之緊急故障排除", "系統異常緊急應變與復原",
+          "WBS進度規劃與人力工時預估", "成本分析與預算編列", "採購付款與進度收款預估",
+          "規格書/SOP/FAT/SAT文件管理", "竣工圖繪製與CAD圖檔維護", "I/O點數表與機電設備規格表",
+          "現場施工排程與監理", "分包商協調與驗收作業", "設備交期追蹤與材料管理",
+          "vendor評鑑與淘汰", "長交期物料策略採購", "分包成本管控",
+          "風險辨識與應對措施制定", "品質稽核與文件審查", "FAT/SAT驗收執行"
+        ],
+        "性質分類": {
+          "核心開發": ["自動控制專業", "系統集成與通訊"],
+          "非專案工時": ["行政事務", "內部溝通", "教育培訓與學習"],
+          "管理工時": ["專案管理", "工程計劃與成本控管", "品質與風險管理", "廠商與分包商管理"],
+          "對外工時": ["客戶接洽", "出差考察", "交付與驗收"],
+          "工程工時": ["施工管理與物料追蹤", "文件與圖面管理"],
+          "異常工時": ["突發狀況"]
+        }
+      },
+      "clients": "待週三會議後填入（來源檔案未列出具體客戶，可能與 SI/AC 客戶重疊）",
+      "risk_rules": {
+        "fragmentation_threshold": 3,
+        "emergency_ratio_threshold": 0.10,
+        "spof_threshold": 0.50
+      }
+    },
+
+    "自動控制部": {
+      "code": "AC",
+      "name": "自動控制部",
+      "folder_number": "集團18",
+      "wecom_folder": "/Users/chengshihhuai/Library/Containers/com.tencent.WeWorkMac/Data/WeDrive/上海御大/集團18_自動控制部",
+      "pmo_folder": "/Users/chengshihhuai/Library/Containers/com.tencent.WeWorkMac/Data/WeDrive/上海御大/集團19_PMO管理部",
+      "supervisor": {
+        "name": "待確認（週三會議）",
+        "role": "主管",
+        "notify_chatId": "待確認",
+        "notify_channel": "待確認"
+      },
+      "dashboard_path": "待建立",
+      "tables": {
+        "專案主檔": { "sheet_id": "aWADji" },
+        "員工檔": { "sheet_id": "wRO2mb" },
+        "成員組合表": { "sheet_id": "FcwZ3N" }
+      },
+      "org_structure": {
+        "description": "自動控制部工作梳理",
+        "sub_departments": [
+          { "name": "自控設計部" },
+          { "name": "自控控制部" }
+        ],
+        "key_personnel": ["劉彥儒"],
+        "recruitment_needs": "2-3位",
+        "technical_domains": ["HMI", "PLC", "DDC", "Modbus", "DCS"],
+        "source": "自動控制工作組織架構圖.pdf + 自動控制專案管理人員工作能力清單_20251211.xlsx"
+      },
+      "job_levels": ["AE_助理工程師", "E_工程師", "SE_高級工程師"],
+      "employees": [
+        { "name": "劉彥儒", "role": "待確認", "dept": "自動控制部", "source": "組織架構圖" },
+        { "name": "沈旋", "sheet_id": "aC2oKZ", "role": "副工程師", "dept": "自控工程組", "source": "組織調整 2026-06-22（原系統工程部）" },
+        { "name": "王先沛", "sheet_id": "w9iYoX", "role": "副工程師", "dept": "自控工程組", "source": "組織架構圖" },
+        { "name": "李志鴻", "sheet_id": "2P48nv", "role": "實習助工", "dept": "自控工程組", "source": "組織架構圖" },
+        { "name": "羅瑞來", "sheet_id": "EwpJyQ", "role": "實習助工", "dept": "自控工程組", "source": "組織架構圖" },
+        { "name": "曹永強", "sheet_id": "obPe7l", "role": "副工程師", "dept": "自控設計組", "source": "組織架構圖" },
+        { "name": "趙雅睿", "sheet_id": "Wh8G3t", "role": "副工程師", "dept": "自控設計組", "source": "組織架構圖" },
+        { "name": "閆麗鈴", "sheet_id": "AsKSlx", "role": "副工程師", "dept": "自控設計組", "source": "組織架構圖" },
+        { "name": "王一書", "sheet_id": "bZMbWe", "role": "實習助工", "dept": "自控設計組", "source": "組織架構圖" }
+      ],
+      "task_categories": {
+        "任務大類": [
+          "行政事務", "內部溝通", "專案管理", "客戶接洽", "出差考察",
+          "突發狀況", "控制器設備與通訊", "DDC-PLC控制邏輯開發",
+          "圖控系統(HMI)開發", "系統軟體與環境建置", "現場施工與測試",
+          "自控系統設計", "儀電工程", "教育培訓與學習"
+        ],
+        "任務細項": [
+          "文書處理與報銷", "採購申報與材料管理", "週報與月報撰寫",
+          "部門會議與跨組別協調", "教育培訓與工法交流",
+          "專案進度管控與施工排程", "現場監理與分包商協調", "材料設備交期追蹤與驗收",
+          "需求訪談與控制方案撰寫", "技術簡報與現場簡報說明",
+          "現場勘查與施工條件評估", "長途出差含交通時間",
+          "非預期之設備故障緊急搶修", "系統異常排查與緊急支援",
+          "BAS/BMS系統架構規劃", "控制策略與點位表設計", "系統整合方案與介面規劃",
+          "DDC控制器程式編寫與模擬測試", "控制邏輯調校與節能策略實現",
+          "PLC程式撰寫與離線模擬", "通訊協議開發與設備驅動整合",
+          "SCADA/HMI畫面繪製與互動開發", "點位配置與歷史趨勢畫面建置",
+          "現場配線施工與設備安裝", "系統聯調測試與功能驗證", "竣工驗收與教育訓練交付",
+          "儀表選型與安裝校驗", "電氣控制盤設計與配線"
+        ],
+        "性質分類": {
+          "核心開發": ["自控系統設計", "控制器設備與通訊", "DDC-PLC控制邏輯開發", "圖控系統(HMI)開發", "系統軟體與環境建置", "現場施工與測試", "儀電工程"],
+          "非專案工時": ["行政事務", "內部溝通", "教育培訓與學習"],
+          "管理工時": ["專案管理"],
+          "對外工時": ["客戶接洽", "出差考察"],
+          "異常工時": ["突發狀況"]
+        }
+      },
+      "clients": [
+        "鵬鼎PA02", "鵬鼎PA03", "鵬鼎PA06", "鵬鼎PA08", "鵬鼎PA10",
+        "鵬鼎PA12", "鵬鼎PA13", "綠箭", "躍登", "欣興電子",
+        "京尼和耀", "泰國普英", "馬球美達", "賽米", "昆山耐創",
+        "泰國環核", "泰國精興", "泰國尖端", "泰國中瑞", "泰國群光",
+        "群光電子", "泰國豪展", "勤茂一期", "定穎", "立健信", "印尼和耀"
+      ],
+      "risk_rules": {
+        "fragmentation_threshold": 3,
+        "emergency_ratio_threshold": 0.10,
+        "spof_threshold": 0.50
+      }
+    }
+  },
+
+  "cron_jobs": {
+    "週一提醒": { "jobId": "983cb612-f6c3-44f9-831f-00741de54665", "scope": "all_departments" },
+    "客戶同步": { "jobId": "2ce1e777-22d3-4b24-b56b-e64660f428fa", "scope": "all_departments" },
+    "燃燒率更新": { "jobId": "d2de31fd-f8c7-435c-84d8-e325984164d3", "scope": "all_departments" },
+    "週日匯總_首次": { "jobId": "87c9a8bb-c088-4469-a0c5-119fb110d068", "scope": "系統集成部" },
+    "週日匯總_循環": { "jobId": "11cd3182-b27e-4e86-86c4-91305b55b6a9", "scope": "系統集成部" },
+    "月報": { "jobId": "c4ba65c0-1e91-43f3-b3fe-9d70e719b4c8", "scope": "all_departments" },
+    "季報": { "jobId": "37e0c194-573b-45bb-bb2d-f05d519fb0bc", "scope": "all_departments" },
+    "週五跟催": { "jobId": "37bae088-b7c6-4b51-949b-30552a8c3aba", "scope": "系統集成部" },
+    "每日提醒_已停用": { "jobId": "81d6ab63-7d1e-441b-aab4-00fe9bdf15cd", "scope": "disabled" }
+  },
+
+  "reporting": {
+    "weekly_summary_day": "sunday",
+    "weekly_summary_time": "18:00",
+    "timezone": "Asia/Shanghai",
+    "admin_chatId": "47289e84-0957-4b03-8537-4183daaed1ae",
+    "admin_name": "鄭士淮"
+  },
+
+  "last_updated": "2026-06-22",
+  "pending_actions": [
+    "[已完成] 系統工程部 org_structure 已填入（御能11+3、蘇州明翰5、借調3-4人到泰國）",
+    "[已完成] 自動控制部 org_structure 已填入（自控設計部+自控控制部、劉彥儒、王一青、招聘2-3位）",
+    "[已完成] 自動控制部 clients 已填入（26個客戶，來源：組織架構圖PDF）",
+    "[已完成] 自動控制部 employees 已填入（劉彥儒、王一青）並新增至智能表格員工檔",
+    "[已完成] 自動控制部專案主檔已新增（來源：組織架構圖PDF）",
+    "[已完成] 系統工程部 task_categories 已更新為工程專案管理導向（來源：工作能力清單Excel）",
+    "週三會議後：填入系統工程部員工名單與 sheet_id（目前僅知編制人數，尚無個別姓名）",
+    "週三會議後：確認兩部門主管姓名與通知 chatId（目前標註「待確認」）",
+    "週三會議後：確認系統工程部客戶名稱列表並填入下拉選項",
+    "週三會議後：為系統工程部與自動控制部員工建立個人工時分頁",
+    "[已完成] 王笑一(IfxE9p)：分頁+下拉選項+SEED記錄 (2026-06-12)",
+    "[已完成] 裴文(LWVE2t)：分頁+下拉選項+SEED記錄 (2026-06-12)",
+    "[已完成] 修正週日匯總 cron job 的 sheet_id：14個錯誤ID全部替換為正確值 + 補上王笑一/裴文 (2026-06-16)",
+    "[已完成] 組織調整：沈旋從系統工程部(SE)調至自動控制部(AC)，王一青從AC移除 (2026-06-22)"
+  ]
+}
