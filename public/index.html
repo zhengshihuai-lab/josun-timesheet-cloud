@@ -714,25 +714,76 @@ function renderKPIs() {
   deltaEl.textContent = (delta >= 0 ? '+' : '') + delta + '%';
   deltaEl.className = 'tag ' + (delta >= 0 ? 'tag-green' : 'tag-red');
 
-  // Count quality issues for current dept/week
+  // Count quality issues for current dept/week — all 11 rules
   const activeEmpsQ = getActiveEmployees().filter(e => empTotal(currentWeek, e) > 0);
+  const weekIdxQ = WEEKS.indexOf(currentWeek);
+  const prevWeekQ = weekIdxQ > 0 ? WEEKS[weekIdxQ - 1] : null;
   let qualityIssues = 0;
   activeEmpsQ.forEach(emp => {
     const data = TS[currentWeek]?.[emp]; if (!data) return;
     const total = empTotal(currentWeek, emp);
     const activeCats = CATS.filter(c => (data[c] || 0) > 0);
+    const hData = HEATMAP[currentWeek]?.[emp];
+    const wDays = ['週一','週二','週三','週四','週五'];
+    // R1: single-task monopolizer
     if (activeCats.length > 0 && total >= 20) {
       const maxCat = activeCats.reduce((a, b) => (data[a]||0) > (data[b]||0) ? a : b);
       if ((data[maxCat]||0) / total >= 0.8 && activeCats.length <= 2) qualityIssues++;
     }
-    const hData = HEATMAP[currentWeek]?.[emp];
+    // R2: uniform daily hours
     if (hData) {
-      const hours = ['週一','週二','週三','週四','週五'].map(d => hData[d]||0).filter(h => h > 0);
+      const hours = wDays.map(d => hData[d]||0).filter(h => h > 0);
       if (hours.length >= 3 && hours.every(h => h === hours[0]) && hours[0] === 8) qualityIssues++;
     }
+    // R3: fragmentation
     if (activeCats.length >= 6) qualityIssues++;
+    // R4: zero hours mid-week
+    if (hData) {
+      const hours = wDays.map(d => hData[d]||0);
+      if (hours.filter(h => h > 0).length >= 2 && hours.filter(h => h === 0).length >= 2 && total > 0) qualityIssues++;
+    }
+    // R5: low total
     if (total > 0 && total < 16 && !['實習生','王笑一','裴文'].includes(emp)) qualityIssues++;
+    // R6: high total
     if (total > 50) qualityIssues++;
+    // R7: daily single-task monopolizer
+    if (hData && activeCats.length > 0 && total >= 7) {
+      const dh = wDays.map(d => hData[d]||0);
+      const wd = dh.filter(h => h > 0);
+      if (wd.length >= 3) {
+        const mc = activeCats.reduce((a, b) => (data[a]||0) > (data[b]||0) ? a : b);
+        if ((data[mc]||0) / (wd.length * 8) >= 0.85 && activeCats.length <= 2) qualityIssues++;
+      }
+    }
+    // R8: week-over-week identical pattern
+    if (prevWeekQ && TS[prevWeekQ]?.[emp]) {
+      const pd = TS[prevWeekQ][emp];
+      const pt = CATS.reduce((s, c) => s + (pd[c]||0), 0);
+      if (pt > 0 && total > 0 && total >= 20) {
+        let sp=0,sc=0,sq=0;
+        CATS.forEach(c => { const a=(data[c]||0)/total,b=(pd[c]||0)/pt; sp+=a*b; sc+=a*a; sq+=b*b; });
+        const cs = (sc>0&&sq>0) ? sp/Math.sqrt(sc*sq) : 0;
+        const ph = HEATMAP[prevWeekQ]?.[emp];
+        let ds=0;
+        if (hData && ph) { let dp=0,d1=0,d2=0; wDays.forEach(d => { const a=hData[d]||0,b=ph[d]||0; dp+=a*b; d1+=a*a; d2+=b*b; }); ds=(d1>0&&d2>0)?dp/Math.sqrt(d1*d2):0; }
+        const comb = hData && ph ? (cs*0.6+ds*0.4) : cs;
+        if (comb > 0.90) qualityIssues++;
+      }
+    }
+    // R9: low daily category diversity
+    if (activeCats.length === 1 && total >= 16 && hData) {
+      if (wDays.filter(d => (hData[d]||0) > 0).length >= 3) qualityIssues++;
+    }
+    // R10: round number suspicion
+    if (hData) {
+      const wh = wDays.map(d => hData[d]||0).filter(h => h > 0);
+      if (wh.length >= 3 && wh.every(h => h%4===0||h%8===0) && [...new Set(wh)].length > 1) qualityIssues++;
+    }
+    // R11: weekend overtime not detailed
+    if (hData) {
+      const wt = (hData['週六']||0) + (hData['週日']||0);
+      if (wt > 0 && wt >= 4 && activeCats.length <= 2) qualityIssues++;
+    }
   });
   const riskCount = RISKS.length + qualityIssues;
   document.getElementById('kpiRisks').innerHTML = riskCount + '<span class="kpi-unit">項</span>';
@@ -1730,11 +1781,14 @@ function renderTrends() {
 }
 
 // ===== FILLING QUALITY ANALYSIS =====
+let _qaFilter = 'all';
 function renderQualityAnalysis() {
   const el = document.getElementById('qualityList');
   const issues = [];
   const activeEmps = getActiveEmployees().filter(e => empTotal(currentWeek, e) > 0);
   const weekData = TS[currentWeek];
+  const weekIdx = WEEKS.indexOf(currentWeek);
+  const prevWeek = weekIdx > 0 ? WEEKS[weekIdx - 1] : null;
 
   activeEmps.forEach(emp => {
     const data = weekData?.[emp];
@@ -1743,15 +1797,17 @@ function renderQualityAnalysis() {
     const activeCats = CATS.filter(c => (data[c] || 0) > 0);
     const hData = HEATMAP[currentWeek]?.[emp];
     const realName = EMP_NAMES[emp] || emp;
+    const weekDays = ['週一','週二','週三','週四','週五'];
+    const weekEndDays = ['週六','週日'];
 
-    // Rule 1: Single-task monopolizer — one category >= 80% of total AND total >= 20hr
+    // ── Rule 1: Single-task monopolizer (weekly) — one category >= 80% of total AND total >= 20hr ──
     if (activeCats.length > 0 && total >= 20) {
       const maxCat = activeCats.reduce((a, b) => (data[a]||0) > (data[b]||0) ? a : b);
       const maxHrs = data[maxCat] || 0;
       const ratio = maxHrs / total;
       if (ratio >= 0.8 && activeCats.length <= 2) {
         issues.push({
-          level: 'high', emp, realName,
+          level: 'high', emp, realName, rule: 1,
           title: '單一任務獨佔 — ' + emp,
           desc: `${realName} 本週 ${total}hr 中有 ${maxHrs}hr (${(ratio*100).toFixed(0)}%) 集中在「${maxCat}」，僅涉及 ${activeCats.length} 個分類。全天只做一件事的填寫方式極可能不準確，建議主管確認是否有確實拆分不同任務時段。`,
           suggestion: '請主管與該員確認：是否將多種工作內容合併填入單一分類'
@@ -1759,15 +1815,14 @@ function renderQualityAnalysis() {
       }
     }
 
-    // Rule 2: Suspiciously uniform daily hours (all days same number, e.g., all 8s)
+    // ── Rule 2: Suspiciously uniform daily hours (all days same number) ──
     if (hData) {
-      const days = ['週一','週二','週三','週四','週五'];
-      const hours = days.map(d => hData[d] || 0).filter(h => h > 0);
+      const hours = weekDays.map(d => hData[d] || 0).filter(h => h > 0);
       if (hours.length >= 3) {
         const allSame = hours.every(h => h === hours[0]);
         if (allSame && hours[0] === 8) {
           issues.push({
-            level: 'medium', emp, realName,
+            level: 'medium', emp, realName, rule: 2,
             title: '每日工時完全相同 — ' + emp,
             desc: `${realName} 本週每天工時均為 ${hours[0]}hr，完全無波動。真實工作很難每天都恰好相同時數，可能為「复制粘贴」式填寫。`,
             suggestion: '建議主管提醒該員如实反映每日實際工時分配'
@@ -1776,79 +1831,278 @@ function renderQualityAnalysis() {
       }
     }
 
-    // Rule 3: Too many categories (fragmentation > 6)
+    // ── Rule 3: Too many categories (fragmentation > 6) ──
     if (activeCats.length >= 6) {
       issues.push({
-        level: 'medium', emp, realName,
+        level: 'medium', emp, realName, rule: 3,
         title: '任務過度碎片化 — ' + emp,
         desc: `${realName} 本週涉及 ${activeCats.length} 個任務分類，工時高度分散。頻繁切換任務會嚴重影響深度工作效率和產出品質。`,
         suggestion: '建議主管檢視任務分配，減少同日多任務切換，規劃「專注日」'
       });
     }
 
-    // Rule 4: Zero hours mid-week (worked some days but skipped others)
+    // ── Rule 4: Zero hours mid-week ──
     if (hData) {
-      const days = ['週一','週二','週三','週四','週五'];
-      const hours = days.map(d => hData[d] || 0);
+      const hours = weekDays.map(d => hData[d] || 0);
       const workedDays = hours.filter(h => h > 0).length;
       const zeroDays = hours.filter(h => h === 0).length;
       if (workedDays >= 2 && zeroDays >= 2 && total > 0) {
         issues.push({
-          level: 'low', emp, realName,
+          level: 'low', emp, realName, rule: 4,
           title: '多日零工時 — ' + emp,
-          desc: `${realName} 本週有 ${zeroDays} 天工時為 0（${days.filter((d,i) => hours[i]===0).join('、')}），但有 ${workedDays} 天有工時。請確認是否為休假/出差，或漏填。`,
+          desc: `${realName} 本週有 ${zeroDays} 天工時為 0（${weekDays.filter((d,i) => hours[i]===0).join('、')}），但有 ${workedDays} 天有工時。請確認是否為休假/出差，或漏填。`,
           suggestion: '確認零工時日是否為休假/補休，若非休假請補填工時'
         });
       }
     }
 
-    // Rule 5: Very low total hours (< 16hr for the week, not a part-timer)
+    // ── Rule 5: Very low total hours (< 16hr) ──
     if (total > 0 && total < 16 && !['實習生','王笑一','裴文'].includes(emp)) {
       issues.push({
-        level: 'medium', emp, realName,
+        level: 'medium', emp, realName, rule: 5,
         title: '週工時嚴重不足 — ' + emp,
         desc: `${realName} 本週僅填報 ${total} 小時，遠低於標準 40 小時。可能原因：漏填、未填、或實際工作量不足。`,
         suggestion: '請主管確認該員本週是否有正常出勤，提醒補填遺漏工時'
       });
     }
 
-    // Rule 6: Extremely high hours (> 50hr, potential burnout)
+    // ── Rule 6: Extremely high hours (> 50hr) ──
     if (total > 50) {
       issues.push({
-        level: 'medium', emp, realName,
+        level: 'medium', emp, realName, rule: 6,
         title: '超時工作警示 — ' + emp,
         desc: `${realName} 本週工時達 ${total} 小時，超出標準 25%。持續超時工作會增加倦怠風險，長期反而降低產出品質。`,
         suggestion: '評估是否需要重新分配任務或增加人力支援'
       });
     }
+
+    // ── Rule 7: Daily Single-Task Monopolizer (日維度單一任務獨佔) ──
+    // Infer from weekly data: if one category dominates 85%+ of working-day capacity AND <=2 categories
+    if (hData && activeCats.length > 0 && total >= 7) {
+      const dailyHours = weekDays.map(d => hData[d] || 0);
+      const workingDays = dailyHours.filter(h => h > 0);
+      const numWorkingDays = workingDays.length;
+      if (numWorkingDays >= 3) {
+        const maxCat = activeCats.reduce((a, b) => (data[a]||0) > (data[b]||0) ? a : b);
+        const maxHrs = data[maxCat] || 0;
+        const dayCapacity = numWorkingDays * 8;
+        const dayRatio = maxHrs / dayCapacity;
+        // Flag if one category fills 85%+ of all working day capacity AND very few categories
+        if (dayRatio >= 0.85 && activeCats.length <= 2) {
+          // Identify which days were likely fully consumed by this category
+          const flaggedDays = weekDays.filter((d, i) => dailyHours[i] >= 7);
+          const dayDesc = flaggedDays.map(d => {
+            const h = hData[d] || 0;
+            return d + '（' + h + 'hr）';
+          }).join('、');
+          issues.push({
+            level: 'high', emp, realName, rule: 7,
+            title: '日維度單一任務獨佔 — ' + emp,
+            desc: `${realName} 在${dayDesc}整天只填了「${maxCat}」一個分類，完全沒有任何行政、溝通或其他工作。真實工作中不可能整天只做一件事，此填寫方式有問題。`,
+            suggestion: '請主管要求該員逐日拆分不同任務類型，至少應有行政/溝通等日常活動'
+          });
+        }
+      }
+    }
+
+    // ── Rule 8: Week-over-Week Identical Pattern (跨週複製貼上) ──
+    if (prevWeek && TS[prevWeek]?.[emp]) {
+      const prevData = TS[prevWeek][emp];
+      const prevTotal = CATS.reduce((s, c) => s + (prevData[c] || 0), 0);
+      if (prevTotal > 0 && total > 0) {
+        // Compare category breakdown vectors
+        let sumProduct = 0, sumSqCur = 0, sumSqPrev = 0;
+        CATS.forEach(c => {
+          const cur = (data[c] || 0) / total;
+          const prv = (prevData[c] || 0) / prevTotal;
+          sumProduct += cur * prv;
+          sumSqCur += cur * cur;
+          sumSqPrev += prv * prv;
+        });
+        const cosineSim = (sumSqCur > 0 && sumSqPrev > 0) ? sumProduct / Math.sqrt(sumSqCur * sumSqPrev) : 0;
+        // Also compare daily hours pattern
+        const curHData = HEATMAP[currentWeek]?.[emp];
+        const prevHData = HEATMAP[prevWeek]?.[emp];
+        let dailySim = 0;
+        if (curHData && prevHData) {
+          let dSumProd = 0, dSumSq1 = 0, dSumSq2 = 0;
+          weekDays.forEach(d => {
+            const a = curHData[d] || 0;
+            const b = prevHData[d] || 0;
+            dSumProd += a * b; dSumSq1 += a * a; dSumSq2 += b * b;
+          });
+          dailySim = (dSumSq1 > 0 && dSumSq2 > 0) ? dSumProd / Math.sqrt(dSumSq1 * dSumSq2) : 0;
+        }
+        const combinedSim = curHData && prevHData ? (cosineSim * 0.6 + dailySim * 0.4) : cosineSim;
+        if (combinedSim > 0.90 && total >= 20) {
+          issues.push({
+            level: 'medium', emp, realName, rule: 8,
+            title: '跨週複製貼上 — ' + emp,
+            desc: `${realName} 本週（${currentWeek}）與上週（${prevWeek}）的工時分配相似度達 ${(combinedSim * 100).toFixed(1)}%（分類比例 ${(cosineSim*100).toFixed(1)}% + 每日工時 ${(dailySim*100).toFixed(1)}%），高度疑似直接複製上週資料。`,
+            suggestion: '請主管確認本週工作內容是否確實與上週完全一致，或為偷懶複製'
+          });
+        }
+      }
+    }
+
+    // ── Rule 9: Low Daily Category Diversity (每日分類多樣性不足) ──
+    // If the employee only has 1 category for the entire week with meaningful hours,
+    // it implies every working day was single-category
+    if (activeCats.length === 1 && total >= 16) {
+      const onlyCat = activeCats[0];
+      const onlyHrs = data[onlyCat] || 0;
+      if (hData) {
+        const workedDayCount = weekDays.filter(d => (hData[d]||0) > 0).length;
+        if (workedDayCount >= 3) {
+          issues.push({
+            level: 'medium', emp, realName, rule: 9,
+            title: '每日分類多樣性不足 — ' + emp,
+            desc: `${realName} 本週全部 ${total}hr 僅填入「${onlyCat}」一個分類，${workedDayCount} 個工作日每天都没有任何其他類型的任務記錄。即使主要工作確實集中在此分類，也應有行政事務、內部溝通等基本活動。`,
+            suggestion: '提醒該員即使是專職工程師，也應拆分出會議、溝通、文件等日常工時'
+          });
+        }
+      }
+    }
+
+    // ── Rule 10: Round Number Suspicion (整數填充) ──
+    if (hData) {
+      const allDailyHours = weekDays.map(d => hData[d] || 0);
+      const workedHours = allDailyHours.filter(h => h > 0);
+      if (workedHours.length >= 3) {
+        const allRound = workedHours.every(h => h % 4 === 0 || h % 8 === 0);
+        if (allRound) {
+          // Check uniqueness — if they're all the same, Rule 2 already catches it
+          const uniqueHours = [...new Set(workedHours)];
+          if (uniqueHours.length > 1) {
+            issues.push({
+              level: 'low', emp, realName, rule: 10,
+              title: '整數填充嫌疑 — ' + emp,
+              desc: `${realName} 本週每日工時均為 4 或 8 的倍數（${workedHours.join(', ')}），沒有任何小數或非整數值。這暗示可能是憑感覺猜測而非實際追蹤時間。`,
+              suggestion: '建議該員使用計時工具或日曆回顧，如實記錄每天實際工作時長'
+            });
+          }
+        }
+      }
+    }
+
+    // ── Rule 11: Missing Weekend Overtime Detail (週末加班未細分) ──
+    if (hData) {
+      const weekendHours = weekEndDays.map(d => hData[d] || 0);
+      const weekendTotal = weekendHours.reduce((a, b) => a + b, 0);
+      if (weekendTotal > 0) {
+        // Check if weekend hours exist but only 1 category for the week
+        // (since we can't split per-day categories, we flag if total categories is very low)
+        if (activeCats.length <= 2 && weekendTotal >= 4) {
+          const topCat = activeCats.reduce((a, b) => (data[a]||0) > (data[b]||0) ? a : b);
+          issues.push({
+            level: 'low', emp, realName, rule: 11,
+            title: '週末加班未細分 — ' + emp,
+            desc: `${realName} 本週週末有加班（${weekEndDays.filter((d,i) => weekendHours[i]>0).map((d,i) => d + ' ' + weekendHours[i] + 'hr').join('、')}），但週工時僅涉及 ${activeCats.length} 個分類。週末加班應有更詳細的任務拆分記錄。`,
+            suggestion: '請主管要求該員對週末加班時數進行更細緻的任務分類填寫'
+          });
+        }
+      }
+    }
   });
 
-  // Sort: high > medium > low
+  // Sort: high > medium > low, then by employee name
   const order = { high: 0, medium: 1, low: 2 };
-  issues.sort((a, b) => order[a.level] - order[b.level]);
+  issues.sort((a, b) => order[a.level] - order[b.level] || a.emp.localeCompare(b.emp));
+
+  // Count by severity
+  const countHigh = issues.filter(i => i.level === 'high').length;
+  const countMed = issues.filter(i => i.level === 'medium').length;
+  const countLow = issues.filter(i => i.level === 'low').length;
 
   // Render
   if (issues.length === 0) {
-    el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text3)">✅ 本週填寫品質良好，未發現異常</div>';
+    el.innerHTML = '<div style="text-align:center;padding:32px 24px;color:var(--text3)"><div style="font-size:28px;margin-bottom:8px">&#10004;</div><div style="font-size:13px;font-weight:600">本週填寫品質良好</div><div style="font-size:11px;margin-top:4px;opacity:.7">11 項檢測規則全部通過，未發現異常</div></div>';
   } else {
     const levelColors = { high: 'var(--red)', medium: 'var(--yellow)', low: 'var(--blue)' };
-    const levelBg = { high: 'rgba(240,96,96,.06)', medium: 'rgba(240,192,64,.06)', low: 'rgba(30,170,224,.06)' };
-    const levelLabels = { high: '⚠️ 嚴重', medium: '⚡ 注意', low: '💡 提醒' };
+    const levelBg = { high: 'rgba(240,96,96,.06)', medium: 'rgba(240,192,64,.06)', blue: 'rgba(30,170,224,.06)', low: 'rgba(30,170,224,.06)' };
+    const levelLabels = { high: '&#9888;&#65039; 嚴重', medium: '&#9889; 注意', low: '&#128161; 提醒' };
+    const levelIcons = { high: '&#9888;&#65039;', medium: '&#9889;', low: '&#128161;' };
 
-    el.innerHTML = issues.map(issue => `
-      <div style="background:${levelBg[issue.level]};border:1px solid var(--border);border-radius:12px;padding:14px 16px;border-left:3px solid ${levelColors[issue.level]}">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <span style="font-size:13px;font-weight:700">${levelLabels[issue.level]} ${issue.title}</span>
-          <span class="card-badge" style="font-size:10px">${currentWeek}</span>
+    // ── Summary bar ──
+    let summaryParts = [];
+    if (countHigh > 0) summaryParts.push(`<span style="background:rgba(240,96,96,.12);color:var(--red);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">&#9888;&#65039; ${countHigh} 嚴重</span>`);
+    if (countMed > 0) summaryParts.push(`<span style="background:rgba(240,192,64,.12);color:var(--yellow);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">&#9889; ${countMed} 注意</span>`);
+    if (countLow > 0) summaryParts.push(`<span style="background:rgba(30,170,224,.12);color:var(--blue);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">&#128161; ${countLow} 提醒</span>`);
+
+    // ── Filter chips ──
+    const filterChips = [
+      { key: 'all', label: '全部 (' + issues.length + ')' },
+      { key: 'high', label: '嚴重 (' + countHigh + ')' },
+      { key: 'medium', label: '注意 (' + countMed + ')' },
+      { key: 'low', label: '提醒 (' + countLow + ')' }
+    ].map(f => {
+      const active = _qaFilter === f.key;
+      return `<button onclick="_qaFilter='${f.key}';renderQualityAnalysis()" style="border:none;cursor:pointer;font-size:11px;font-weight:${active?'700':'500'};padding:4px 12px;border-radius:16px;background:${active?'var(--josun)':'var(--card)'};color:${active?'#fff':'var(--text2)'};transition:all .2s;margin-right:6px">${f.label}</button>`;
+    }).join('');
+
+    // ── Filter issues ──
+    const filtered = _qaFilter === 'all' ? issues : issues.filter(i => i.level === _qaFilter);
+
+    // ── Group by employee ──
+    const empGroups = {};
+    filtered.forEach(issue => {
+      if (!empGroups[issue.emp]) empGroups[issue.emp] = { realName: issue.realName, issues: [] };
+      empGroups[issue.emp].issues.push(issue);
+    });
+
+    // ── Build employee cards ──
+    let empCards = '';
+    Object.keys(empGroups).forEach(emp => {
+      const grp = empGroups[emp];
+      const highC = grp.issues.filter(i => i.level === 'high').length;
+      const medC = grp.issues.filter(i => i.level === 'medium').length;
+      const lowC = grp.issues.filter(i => i.level === 'low').length;
+      const badgeParts = [];
+      if (highC) badgeParts.push(`<span style="color:var(--red);font-size:10px;font-weight:700">&#9888;&#65039;${highC}</span>`);
+      if (medC) badgeParts.push(`<span style="color:var(--yellow);font-size:10px;font-weight:700">&#9889;${medC}</span>`);
+      if (lowC) badgeParts.push(`<span style="color:var(--blue);font-size:10px;font-weight:700">&#128161;${lowC}</span>`);
+
+      const groupId = 'qa_' + emp.replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g, '_');
+      const issueCards = grp.issues.map(issue => {
+        const ruleTag = `<span style="font-size:9px;color:var(--text3);background:var(--bg);padding:1px 6px;border-radius:8px;margin-left:6px">R${issue.rule}</span>`;
+        return `<div style="background:${levelBg[issue.level]};border:1px solid var(--border);border-radius:10px;padding:12px 14px;border-left:3px solid ${levelColors[issue.level]};margin-top:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+            <span style="font-size:12px;font-weight:700">${levelLabels[issue.level]} ${issue.title}${ruleTag}</span>
+            <span class="card-badge" style="font-size:10px">${currentWeek}</span>
+          </div>
+          <div style="font-size:11px;color:var(--text2);line-height:1.65;margin-bottom:8px">${issue.desc}</div>
+          <div style="font-size:11px;color:var(--josun);font-weight:600;padding:5px 10px;background:rgba(25,176,143,.08);border-radius:6px;display:inline-block">&#128161; ${issue.suggestion}</div>
+        </div>`;
+      }).join('');
+
+      empCards += `<div style="margin-bottom:10px">
+        <div id="${groupId}_header" onclick="var c=document.getElementById('${groupId}_body');var a=document.getElementById('${groupId}_arrow');if(c.style.display==='none'){c.style.display='block';a.textContent='▼'}else{c.style.display='none';a.textContent='►'}" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:10px;transition:all .2s" onmouseover="this.style.borderColor='var(--josun)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span id="${groupId}_arrow" style="font-size:10px;color:var(--text3)">▼</span>
+            <span style="font-size:12px;font-weight:700;color:var(--text1)">${grp.realName}</span>
+            <span style="font-size:10px;color:var(--text3)">${emp}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">${badgeParts.join('')}</div>
         </div>
-        <div style="font-size:11px;color:var(--text2);line-height:1.6;margin-bottom:8px">${issue.desc}</div>
-        <div style="font-size:11px;color:var(--josun);font-weight:600;padding:5px 10px;background:rgba(25,176,143,.08);border-radius:6px;display:inline-block">💡 ${issue.suggestion}</div>
+        <div id="${groupId}_body" style="padding:0 4px">${issueCards}</div>
+      </div>`;
+    });
+
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:10px">
+        <span style="font-size:11px;color:var(--text3);font-weight:600;margin-right:4px">檢測結果：</span>
+        ${summaryParts.join('')}
+        <span style="flex:1"></span>
+        <span style="font-size:10px;color:var(--text3)">共 ${issues.length} 項問題 / ${Object.keys(empGroups).length} 人</span>
       </div>
-    `).join('');
+      <div style="display:flex;align-items:center;margin-bottom:12px;padding:0 2px">
+        ${filterChips}
+      </div>
+      ${empCards}
+    `;
   }
 
   document.getElementById('qualityBadge').textContent = DEPARTMENTS[currentDept].name + ' · ' + currentWeek;
-  // Update KPI risk count to include quality issues
   return issues;
 }
 
