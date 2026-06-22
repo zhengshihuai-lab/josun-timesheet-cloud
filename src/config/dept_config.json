@@ -10,7 +10,17 @@
     "專案主檔": { "sheet_id": "bwFSJ7", "note": "統一專案主檔, 欄位已建立, 待遷移SI/SE/AC專案數據, 2026-06-22建立" },
     "成員組合表": { "sheet_id": "6dEPwl", "note": "統一成員組合表, 欄位已建立, 待遷移SI/SE/AC成員數據, 2026-06-22建立" },
     "工時明細總表": { "sheet_id": "4oDj60", "alt_ids": ["2lm6yu"] },
-    "總工時填報表": { "sheet_id": "Kq3Mqp", "alt_ids": ["tUZrJM"] }
+    "總工時填報表": { "sheet_id": "Kq3Mqp", "alt_ids": ["tUZrJM"] },
+    "unified_clients": {
+      "count": 40,
+      "note": "統一客戶名單已套用所有39張個人工時分頁下拉選單, 2026-06-22更新",
+      "clients": ["川奇电子","川奇电子老厂","AVC","鵬鼎PA02","鵬鼎PA03","鵬鼎PA06","鵬鼎PA08","鵬鼎PA10","鵬鼎PA12","鵬鼎PA13","昆山耐创科技","耀登科技","群光电子","联茂一期","联茂二期","普英高分子","赛芈科技","超毅电子","华泰电子","印尼和硕Lot2","高求美达","綠箭","躍登","欣興電子","京尼和耀","泰國普英","馬球美達","賽米","昆山耐創","泰國環核","泰國精興","泰國尖端","泰國中瑞","泰國群光","群光電子","泰國豪展","勤茂一期","定穎","立健信","印尼和耀"]
+    },
+    "old_tables_deleted": {
+      "note": "2026-06-22 已刪除舊部門獨立表, 統一使用 PMO 版本",
+      "deleted": ["vK7XLR(SI員工檔)","hQyTFd(SI專案主檔)","jpMxLD(SI成員組合表)"],
+      "already_gone": ["EetVlr(SE員工檔)","njKFtK(SE專案主檔)","OTe4bV(SE成員組合表)","wRO2mb(AC員工檔)","aWADji(AC專案主檔)","FcwZ3N(AC成員組合表)"]
+    }
   },
 
   "departments": {
@@ -28,9 +38,9 @@
       },
       "dashboard_path": "/Users/chengshihhuai/Library/Containers/com.tencent.WeWorkMac/Data/WeDrive/上海御大/集團19_PMO管理部/PMO決策儀表板.html",
       "tables": {
-        "專案主檔": { "sheet_id": "hQyTFd" },
-        "員工檔": { "sheet_id": "vK7XLR", "note": "共用 PMO 員工檔，用「所屬部門」和「預設部門」篩選" },
-        "成員組合表": { "sheet_id": "jpMxLD" }
+        "專案主檔": { "sheet_id": "bwFSJ7", "note": "使用PMO統一專案主檔" },
+        "員工檔": { "sheet_id": "2UklZL", "note": "使用PMO統一員工檔" },
+        "成員組合表": { "sheet_id": "6dEPwl", "note": "使用PMO統一成員組合表" }
       },
       "employees": [
         { "name": "萌萌", "sheet_id": "rfDSfZ", "prefix": "萌" },
@@ -115,9 +125,9 @@
       },
       "dashboard_path": "待建立",
       "tables": {
-        "專案主檔": { "sheet_id": "njKFtK" },
-        "員工檔": { "sheet_id": "EetVlr" },
-        "成員組合表": { "sheet_id": "OTe4bV" }
+        "專案主檔": { "sheet_id": "bwFSJ7", "note": "使用PMO統一專案主檔" },
+        "員工檔": { "sheet_id": "2UklZL", "note": "使用PMO統一員工檔" },
+        "成員組合表": { "sheet_id": "6dEPwl", "note": "使用PMO統一成員組合表" }
       },
       "org_structure": {
         "description": "大陆系统工程部",
@@ -197,9 +207,9 @@
       },
       "dashboard_path": "待建立",
       "tables": {
-        "專案主檔": { "sheet_id": "aWADji" },
-        "員工檔": { "sheet_id": "wRO2mb" },
-        "成員組合表": { "sheet_id": "FcwZ3N" }
+        "專案主檔": { "sheet_id": "bwFSJ7", "note": "使用PMO統一專案主檔" },
+        "員工檔": { "sheet_id": "2UklZL", "note": "使用PMO統一員工檔" },
+        "成員組合表": { "sheet_id": "6dEPwl", "note": "使用PMO統一成員組合表" }
       },
       "org_structure": {
         "description": "自動控制部工作梳理",
