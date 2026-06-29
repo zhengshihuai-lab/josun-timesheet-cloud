@@ -260,12 +260,17 @@ body{font-family:'DM Sans','Noto Sans TC',sans-serif;background:var(--bg);color:
           <div class="kpi">
             <div class="kpi-label">人均工時</div>
             <div class="kpi-value" id="kpiAvgHrs">0<span class="kpi-unit">hr</span></div>
-            <div class="kpi-sub">基準 40hr / 週</div>
+            <div class="kpi-sub" id="kpiAvgBaseline">基準 — hr / 週</div>
           </div>
           <div class="kpi">
             <div class="kpi-label">核心開發佔比</div>
             <div class="kpi-value" id="kpiCoreRatio">0<span class="kpi-unit">%</span></div>
             <div class="kpi-sub"><span class="tag tag-green">目標 ≥50%</span></div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">團隊利用率</div>
+            <div class="kpi-value" id="kpiUtil">0<span class="kpi-unit">%</span></div>
+            <div class="kpi-sub"><span id="kpiUtilDetail">實際 — hr / 標準 — hr</span></div>
           </div>
           <div class="kpi">
             <div class="kpi-label">風險預警</div>
@@ -337,6 +342,18 @@ body{font-family:'DM Sans','Noto Sans TC',sans-serif;background:var(--bg);color:
             <div class="card-body"><div class="chart-wrap short" id="empBarContainer"><canvas id="empBarChart"></canvas></div></div>
           </div>
         </div>
+
+<!-- Utilization Analysis Panel -->
+<div class="card animate-in delay-4" style="margin-top:16px">
+  <div class="card-head">
+    <div class="card-title"><div class="dot" style="background:var(--orange)"></div>工時利用率分析</div>
+    <div class="card-badge" id="utilPanelBadge">本週</div>
+  </div>
+  <div class="card-body">
+    <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap" id="utilSummaryCards"></div>
+    <div id="utilPanelList" style="display:flex;flex-direction:column;gap:6px"></div>
+  </div>
+</div>
 
 <!-- Filling Quality Analysis -->
 <div class="card animate-in delay-4" style="margin-top:16px">
@@ -453,7 +470,7 @@ body{font-family:'DM Sans','Noto Sans TC',sans-serif;background:var(--bg);color:
           <div class="card">
             <div class="card-head">
               <div class="card-title"><div class="dot" style="background:var(--orange)"></div>利用率分佈</div>
-              <div class="card-badge">基準 40hr</div>
+              <div class="card-badge" id="utilDistBadge">按角色基準</div>
             </div>
             <div class="card-body"><div class="chart-wrap" style="height:260px"><canvas id="utilDistChart"></canvas></div></div>
           </div>
@@ -630,6 +647,32 @@ const EMP_NAMES = {
   '王一青': '王一青',
 };
 
+// Standard weekly hours by employee (role-based)
+const STD_HOURS = {
+  // 總監 / 經理 / 專案管理 — 36hr（會議、對外、管理職責較多）
+  '廖嘉良': 36, '萌萌': 36, '雪可': 36, '周鵬': 36,
+  '唐天生': 36, '唐天意': 36,
+  // 項目專員 — 36hr
+  '焦明媛': 36, '張新怡': 36,
+  // 正職工程師 — 40hr
+  '小熊': 40, '蒙海': 40, '羅潔': 40, 'Marin': 40, '宇捷': 40, '秉睿': 40,
+  '于歐洋': 40, '陸衍瀅': 40, '缪顧贇': 40,
+  '李強': 40, '王業權': 40, '唐傳永': 40, '皇甫小博': 40, '汪子軒': 40,
+  '劉彥儒': 40, '王一青': 40,
+  // 副工程師 — 40hr
+  '沈旋': 40, '王先沛': 40, '曹永強': 40, '趙雅睿': 40, '閆麗鈴': 40,
+  // 設計師 — 35hr
+  '天舒': 35, '馨蕊': 35,
+  // 副理 / 助工 — 35hr
+  '張俊': 35, '裴文': 35, '童志淳': 35,
+  // 實習 / 實習助工 — 24hr
+  '實習生': 24, '王笑一': 24, '慧婷': 24,
+  '李志鴻': 24, '羅瑞來': 24, '王一書': 24,
+  // 肖斌 — 16hr（兼職）
+  '肖斌': 16,
+};
+const STD_HOURS_DEFAULT = 40;
+
 const TS = {
 W19:{萌萌:{行政事務:2,內部溝通:6,專案管理:16,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:5,出差考察:7,突發狀況:2},小熊:{行政事務:2,內部溝通:4,專案管理:0,前端開發:24,後端開發:0,系統整合:0,圖控開發:0,設計規劃:3,客戶接洽:0,出差考察:0,突發狀況:7},蒙海:{行政事務:0,內部溝通:4,專案管理:0,前端開發:0,後端開發:20,系統整合:12,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:6},羅潔:{行政事務:0,內部溝通:4,專案管理:4,前端開發:0,後端開發:0,系統整合:18,圖控開發:0,設計規劃:0,客戶接洽:4,出差考察:6,突發狀況:4},Marin:{行政事務:2,內部溝通:4,專案管理:0,前端開發:0,後端開發:0,系統整合:0,圖控開發:18,設計規劃:5,客戶接洽:0,出差考察:3,突發狀況:4},廖嘉良:{行政事務:2,內部溝通:6,專案管理:10,前端開發:3,後端開發:4,系統整合:2,圖控開發:3,設計規劃:1,客戶接洽:4,出差考察:3,突發狀況:2},天舒:{行政事務:2,內部溝通:4,專案管理:6,前端開發:4,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:0},雪可:{行政事務:2,內部溝通:4,專案管理:8,前端開發:0,後端開發:0,系統整合:6,圖控開發:0,設計規劃:0,客戶接洽:4,出差考察:6,突發狀況:3},馨蕊:{行政事務:2,內部溝通:6,專案管理:4,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:8,客戶接洽:3,出差考察:0,突發狀況:0},慧婷:{行政事務:2,內部溝通:6,專案管理:4,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:6,客戶接洽:4,出差考察:0,突發狀況:0},宇捷:{行政事務:2,內部溝通:4,專案管理:6,前端開發:0,後端開發:4,系統整合:4,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:0},秉睿:{行政事務:2,內部溝通:4,專案管理:0,前端開發:0,後端開發:0,系統整合:8,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:2}},
 W23:{萌萌:{行政事務:2,內部溝通:7,專案管理:17,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:4,出差考察:8,突發狀況:2},小熊:{行政事務:2,內部溝通:5,專案管理:0,前端開發:25,後端開發:0,系統整合:0,圖控開發:0,設計規劃:4,客戶接洽:0,出差考察:0,突發狀況:3},蒙海:{行政事務:0,內部溝通:4,專案管理:0,前端開發:0,後端開發:18,系統整合:14,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:6},羅潔:{行政事務:0,內部溝通:5,專案管理:4,前端開發:0,後端開發:0,系統整合:16,圖控開發:0,設計規劃:0,客戶接洽:5,出差考察:6,突發狀況:4},Marin:{行政事務:2,內部溝通:6,專案管理:0,前端開發:0,後端開發:0,系統整合:0,圖控開發:16,設計規劃:6,客戶接洽:0,出差考察:4,突發狀況:4},廖嘉良:{行政事務:2,內部溝通:5,專案管理:11,前端開發:4,後端開發:3,系統整合:2,圖控開發:2,設計規劃:1,客戶接洽:5,出差考察:4,突發狀況:1},天舒:{行政事務:1,內部溝通:3,專案管理:6,前端開發:3,後端開發:0,系統整合:0,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:1},雪可:{行政事務:2,內部溝通:5,專案管理:9,前端開發:0,後端開發:0,系統整合:5,圖控開發:0,設計規劃:0,客戶接洽:5,出差考察:4,突發狀況:2},馨蕊:{行政事務:2,內部溝通:5,專案管理:3,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:10,客戶接洽:3,出差考察:0,突發狀況:0},慧婷:{行政事務:1,內部溝通:7,專案管理:5,前端開發:0,後端開發:0,系統整合:0,圖控開發:0,設計規劃:7,客戶接洽:3,出差考察:0,突發狀況:1},宇捷:{行政事務:2,內部溝通:3,專案管理:7,前端開發:0,後端開發:5,系統整合:3,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:0},秉睿:{行政事務:2,內部溝通:5,專案管理:0,前端開發:0,後端開發:0,系統整合:9,圖控開發:0,設計規劃:0,客戶接洽:0,出差考察:0,突發狀況:1},實習生:{行政事務:3,內部溝通:3,專案管理:2,前端開發:5,後端開發:0,系統整合:0,圖控開發:0,設計規劃:5,客戶接洽:0,出差考察:0,突發狀況:2},王笑一:{行政事務:2,內部溝通:3,專案管理:2,前端開發:0,後端開發:0,系統整合:2,圖控開發:0,設計規劃:0,客戶接洽:1,出差考察:0,突發狀況:0},裴文:{行政事務:1,內部溝通:2,專案管理:2,前端開發:0,後端開發:0,系統整合:2,圖控開發:0,設計規劃:0,客戶接洽:1,出差考察:0,突發狀況:0},劉彥儒:{行政事務:2,內部溝通:4,專案管理:6,自控系統設計:8,PLC程式開發:6,DDC控制器開發:3,圖控與人機介面:2,現場施工與調試:5,儀電工程:0,客戶接洽:2,出差考察:0,突發狀況:1},王一青:{行政事務:1,內部溝通:3,專案管理:4,自控系統設計:6,PLC程式開發:8,DDC控制器開發:4,圖控與人機介面:3,現場施工與調試:4,儀電工程:0,客戶接洽:1,出差考察:0,突發狀況:0},李強:{行政事務:1,內部溝通:2,專案管理:2,系統整合:8,後端開發:12,客戶接洽:0,出差考察:3,突發狀況:2},王業權:{行政事務:1,內部溝通:2,專案管理:3,系統整合:6,後端開發:10,客戶接洽:2,出差考察:0,突發狀況:1},唐傳永:{行政事務:1,內部溝通:3,專案管理:2,系統整合:10,後端開發:8,客戶接洽:0,出差考察:2,突發狀況:1},皇甫小博:{行政事務:1,內部溝通:2,專案管理:2,系統整合:7,後端開發:9,客戶接洽:0,出差考察:0,突發狀況:1},汪子軒:{行政事務:1,內部溝通:2,專案管理:3,系統整合:9,後端開發:7,客戶接洽:0,出差考察:0,突發狀況:0},焦明媛:{行政事務:2,內部溝通:4,專案管理:8,系統整合:2,後端開發:0,客戶接洽:4,出差考察:2,突發狀況:0},張新怡:{行政事務:2,內部溝通:3,專案管理:7,系統整合:3,後端開發:0,客戶接洽:3,出差考察:2,突發狀況:1},唐天生:{行政事務:1,內部溝通:3,專案管理:10,系統整合:4,後端開發:0,客戶接洽:5,出差考察:4,突發狀況:1},張俊:{行政事務:1,內部溝通:3,專案管理:8,系統整合:5,後端開發:0,客戶接洽:4,出差考察:3,突發狀況:1},唐天意:{行政事務:2,內部溝通:4,專案管理:6,系統整合:3,後端開發:0,客戶接洽:3,出差考察:6,突發狀況:1},沈旋:{行政事務:1,內部溝通:2,專案管理:4,自控系統設計:6,PLC程式開發:5,DDC控制器開發:2,現場施工與調試:3,客戶接洽:0,出差考察:0,突發狀況:1},王先沛:{行政事務:1,內部溝通:2,專案管理:4,PLC程式開發:10,自控系統設計:6,現場施工與調試:8,客戶接洽:2,突發狀況:1},李志鴻:{行政事務:2,內部溝通:3,專案管理:2,PLC程式開發:6,自控系統設計:4,現場施工與調試:5,客戶接洽:0,突發狀況:0},羅瑞來:{行政事務:2,內部溝通:2,專案管理:3,PLC程式開發:5,自控系統設計:5,現場施工與調試:6,客戶接洽:0,突發狀況:1},曹永強:{行政事務:1,內部溝通:2,專案管理:3,PLC程式開發:8,自控系統設計:7,現場施工與調試:6,客戶接洽:1,突發狀況:0},趙雅睿:{行政事務:1,內部溝通:3,專案管理:4,PLC程式開發:7,自控系統設計:6,現場施工與調試:5,客戶接洽:2,突發狀況:1},閆麗鈴:{行政事務:1,內部溝通:2,專案管理:3,PLC程式開發:9,自控系統設計:5,現場施工與調試:7,客戶接洽:1,突發狀況:0},王一書:{行政事務:2,內部溝通:3,專案管理:2,PLC程式開發:4,自控系統設計:3,現場施工與調試:4,客戶接洽:0,突發狀況:0}},
@@ -663,6 +706,12 @@ function getActiveEmployees() {
 function empTotal(week, emp) {
   const d = TS[week]?.[emp]; if(!d) return 0;
   return CATS.reduce((s,c) => s + (d[c]||0), 0);
+}
+function getStdHours(emp) {
+  return STD_HOURS[emp] || STD_HOURS_DEFAULT;
+}
+function teamStdTotal(week) {
+  return getActiveEmployees().filter(e => empTotal(week, e) > 0).reduce((s, e) => s + getStdHours(e), 0);
 }
 function weekTotal(week) {
   return getActiveEmployees().reduce((s,e) => s + empTotal(week,e), 0);
@@ -734,6 +783,16 @@ function renderKPIs() {
   animateValue('kpiTotalHrs', total, 'hr');
   animateValue('kpiAvgHrs', parseFloat(avg), 'hr');
   animateValue('kpiCoreRatio', parseInt(coreRatio), '%');
+
+  // Team utilization: actual total vs standard total
+  const stdTotal = teamStdTotal(currentWeek);
+  const utilPct = stdTotal > 0 ? Math.round((total / stdTotal) * 100) : 0;
+  animateValue('kpiUtil', utilPct, '%');
+  document.getElementById('kpiUtilDetail').textContent = '實際 ' + total + 'hr / 標準 ' + stdTotal + 'hr';
+
+  // Dynamic per-person average baseline
+  const avgStd = activeEmps ? (stdTotal / activeEmps).toFixed(1) : 0;
+  document.getElementById('kpiAvgBaseline').textContent = '基準 ' + avgStd + 'hr / 週';
 
   const deltaEl = document.getElementById('kpiTotalDelta');
   deltaEl.textContent = (delta >= 0 ? '+' : '') + delta + '%';
@@ -1065,7 +1124,8 @@ function renderEmpBar() {
 
   // Guard: empty state when no data
   const empsWithHours = getActiveEmployees()
-    .map(e => ({ name: e, total: empTotal(currentWeek, e) }))
+    .map(e => ({ name: e, total: empTotal(currentWeek, e), std: getStdHours(e) }))
+    .map(e => ({ ...e, util: e.std > 0 ? Math.round((e.total / e.std) * 100) : 0 }))
     .filter(e => e.total > 0)
     .sort((a, b) => b.total - a.total); // Sort descending for ranking
 
@@ -1084,23 +1144,41 @@ function renderEmpBar() {
   const ctx = document.getElementById('empBarChart').getContext('2d');
   if (charts.empBar) charts.empBar.destroy();
 
-  const labels = empsWithHours.map(e => (EMP_NAMES[e.name] || e.name) + '  ' + e.total + 'hr');
+  const labels = empsWithHours.map(e => {
+    const displayName = EMP_NAMES[e.name] || e.name;
+    return displayName + '  ' + e.total + '/' + e.std + 'hr (' + e.util + '%)';
+  });
   const data = empsWithHours.map(e => e.total);
-  const colors = data.map(v => v >= 40 ? '#19B08F90' : v >= 30 ? '#F0C04090' : '#F0606090');
+  const stdData = empsWithHours.map(e => e.std);
+  // Color by utilization: green 80-110%, yellow 60-80% or 110-130%, red <60% or >130%
+  const colors = empsWithHours.map(e => {
+    if (e.util >= 80 && e.util <= 110) return '#19B08F90';
+    if (e.util >= 60 && e.util < 80) return '#F0C04090';
+    if (e.util > 110 && e.util <= 130) return '#1EAAE090';
+    if (e.util < 60) return '#F0606090';
+    return '#7C5CFC90'; // >130% overwork
+  });
 
   charts.empBar = new Chart(ctx, {
     type: 'bar',
     data: {
       labels,
-      datasets: [{ data, backgroundColor: colors, borderRadius: 6, borderSkipped: false }]
+      datasets: [
+        { label: '實際工時', data, backgroundColor: colors, borderRadius: 6, borderSkipped: false },
+        { label: '標準工時', data: stdData, type: 'bar', backgroundColor: 'rgba(94,110,133,0.15)', borderColor: '#5E6E8580', borderWidth: 1, borderRadius: 6, borderSkipped: false, borderDash: [4,2] }
+      ]
     },
     options: {
       indexAxis: 'y', responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: { display: false },
+        legend: { display: true, position: 'bottom', labels: { color: '#95A3B8', font: { size: 9 }, boxWidth: 10, padding: 6 } },
         tooltip: {
           callbacks: {
-            label: function(ctx) { return ctx.raw + ' 小時 / 週'; }
+            label: function(ctx) {
+              const e = empsWithHours[ctx.dataIndex];
+              if (ctx.datasetIndex === 0) return '實際: ' + e.total + 'hr (' + e.util + '%)';
+              return '標準: ' + e.std + 'hr';
+            }
           }
         }
       },
@@ -1617,16 +1695,28 @@ function renderNatureTrend() {
 }
 
 function renderUtilDist() {
+  const wrap = document.getElementById('utilDistChart').parentElement;
+  const _utilWeek = getLatestWeekWithData();
+  if (!weekHasData(_utilWeek)) {
+    if (charts.utilDist) { charts.utilDist.destroy(); charts.utilDist = null; }
+    wrap.innerHTML = getEmptyStateHTML('尚無利用率數據');
+    return;
+  }
+  if (!wrap.querySelector('canvas')) {
+    wrap.innerHTML = '<canvas id="utilDistChart"></canvas>';
+  }
   const ctx = document.getElementById('utilDistChart').getContext('2d');
   if (charts.utilDist) charts.utilDist.destroy();
 
-  const _utilWeek = getLatestWeekWithData();
   const activeEmps = getActiveEmployees().filter(e => empTotal(_utilWeek, e) > 0);
   if (activeEmps.length === 0) {
-    ctx.canvas.parentElement.innerHTML = getEmptyStateHTML('尚無利用率數據');
+    wrap.innerHTML = getEmptyStateHTML('尚無利用率數據');
     return;
   }
-  const utils = activeEmps.map(e => Math.round((empTotal(_utilWeek, e) / 40) * 100));
+  const utils = activeEmps.map(e => {
+    const std = getStdHours(e);
+    return std > 0 ? Math.round((empTotal(_utilWeek, e) / std) * 100) : 0;
+  });
 
   // Bucket into ranges
   const buckets = {'<60%': 0, '60-80%': 0, '80-100%': 0, '100-110%': 0, '>110%': 0};
@@ -1815,18 +1905,23 @@ function renderSummaryTable() {
   head.innerHTML = `<tr style="border-bottom:2px solid var(--border)">
     <th style="text-align:left;padding:10px 8px;color:var(--text2);font-weight:600">員工</th>
     ${labels.map(l => `<th style="text-align:center;padding:10px 6px;color:var(--text2);font-weight:600">${l}</th>`).join('')}
+    <th style="text-align:center;padding:10px 6px;color:var(--text3);font-weight:500;font-size:10px">標準</th>
     <th style="text-align:center;padding:10px 8px;color:var(--josun);font-weight:700">平均</th>
+    <th style="text-align:center;padding:10px 8px;color:var(--orange);font-weight:700">利用率</th>
     <th style="text-align:center;padding:10px 8px;color:var(--blue);font-weight:700">趨勢</th>
   </tr>`;
 
   // Body
   const body = document.getElementById('summaryTableBody');
   body.innerHTML = activeEmps.map(emp => {
+    const std = getStdHours(emp);
     const vals = labels.map(p => {
       const d = periodData[p]?.[emp];
       return d ? Object.values(d).reduce((s, v) => s + v, 0) : 0;
     });
     const avg = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+    const utilPct = std > 0 ? Math.round((avg / std) * 100) : 0;
+    const utilColor = utilPct >= 80 && utilPct <= 110 ? 'var(--green)' : utilPct >= 60 ? 'var(--orange)' : 'var(--red)';
     const { slope } = linearRegression(vals);
     const trendIcon = slope > 1 ? '📈' : slope < -1 ? '📉' : '➡️';
     const trendColor = slope > 1 ? 'var(--green)' : slope < -1 ? 'var(--red)' : 'var(--text3)';
@@ -1834,16 +1929,18 @@ function renderSummaryTable() {
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:8px;font-weight:500;font-size:12px">${emp}</td>
       ${vals.map(v => {
-        const util = Math.round(v / 40 * 100);
-        const bg = v === 0 ? '' : v >= 40 ? 'rgba(25,176,143,.08)' : v >= 30 ? 'rgba(240,192,64,.08)' : 'rgba(240,96,96,.08)';
+        const bg = v === 0 ? '' : v >= std ? 'rgba(25,176,143,.08)' : v >= std * 0.75 ? 'rgba(240,192,64,.08)' : 'rgba(240,96,96,.08)';
         return `<td style="text-align:center;padding:8px 6px;font-family:'JetBrains Mono',monospace;font-size:11px;background:${bg}">${v || '–'}</td>`;
       }).join('')}
+      <td style="text-align:center;padding:8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3)">${std}hr</td>
       <td style="text-align:center;padding:8px;font-weight:700;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--josun)">${avg.toFixed(1)}</td>
+      <td style="text-align:center;padding:8px;font-weight:700;font-family:'JetBrains Mono',monospace;font-size:11px;color:${utilColor}">${utilPct}%</td>
       <td style="text-align:center;padding:8px;color:${trendColor};font-size:14px">${trendIcon}</td>
     </tr>`;
   }).join('');
 
   // Totals row
+  const totalStd = activeEmps.reduce((s, e) => s + getStdHours(e), 0);
   const totalVals = labels.map(p => {
     return activeEmps.reduce((s, e) => {
       const d = periodData[p]?.[e];
@@ -1851,10 +1948,13 @@ function renderSummaryTable() {
     }, 0);
   });
   const totalAvg = totalVals.length ? (totalVals.reduce((a, b) => a + b, 0) / totalVals.length) : 0;
+  const teamUtilPct = totalStd > 0 ? Math.round((totalAvg / (totalStd / activeEmps.length || 1)) * 100) : 0;
   body.innerHTML += `<tr style="border-top:2px solid var(--border);font-weight:700">
     <td style="padding:10px 8px;color:var(--text);font-size:12px">部門合計</td>
     ${totalVals.map(v => `<td style="text-align:center;padding:10px 6px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text)">${v}</td>`).join('')}
+    <td style="text-align:center;padding:10px 6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3)">${totalStd}hr</td>
     <td style="text-align:center;padding:10px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--josun)">${totalAvg.toFixed(0)}</td>
+    <td style="text-align:center;padding:10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--orange)">${teamUtilPct}%</td>
     <td></td>
   </tr>`;
 }
@@ -2479,6 +2579,82 @@ async function fetchAndMergeData() {
   setTimeout(fetchAndMergeData, 30 * 60 * 1000);
 }
 
+function renderUtilizationPanel() {
+  const el = document.getElementById('utilPanelList');
+  const summaryEl = document.getElementById('utilSummaryCards');
+  if (!weekHasData(currentWeek)) {
+    el.innerHTML = getEmptyStateHTML('本週尚無工時數據可分析利用率');
+    summaryEl.innerHTML = '';
+    document.getElementById('utilPanelBadge').textContent = '–';
+    return;
+  }
+
+  const activeEmps = getActiveEmployees()
+    .map(e => ({ name: e, total: empTotal(currentWeek, e), std: getStdHours(e) }))
+    .filter(e => e.total > 0)
+    .map(e => ({ ...e, util: e.std > 0 ? Math.round((e.total / e.std) * 100) : 0, diff: e.total - e.std }))
+    .sort((a, b) => b.util - a.util);
+
+  if (activeEmps.length === 0) {
+    el.innerHTML = getEmptyStateHTML('本週尚無工時數據可分析利用率');
+    summaryEl.innerHTML = '';
+    return;
+  }
+
+  // Summary cards
+  const totalActual = activeEmps.reduce((s, e) => s + e.total, 0);
+  const totalStd = activeEmps.reduce((s, e) => s + e.std, 0);
+  const teamUtil = totalStd > 0 ? Math.round((totalActual / totalStd) * 100) : 0;
+  const overCount = activeEmps.filter(e => e.util > 110).length;
+  const underCount = activeEmps.filter(e => e.util < 80).length;
+  const healthyCount = activeEmps.filter(e => e.util >= 80 && e.util <= 110).length;
+
+  const cardStyle = 'flex:1;min-width:120px;padding:12px;border-radius:8px;border:1px solid var(--border);text-align:center';
+  summaryEl.innerHTML = `
+    <div style="${cardStyle}">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:4px">團隊利用率</div>
+      <div style="font-size:20px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${teamUtil >= 80 && teamUtil <= 110 ? 'var(--green)' : teamUtil >= 60 ? 'var(--orange)' : 'var(--red)'}">${teamUtil}%</div>
+      <div style="font-size:9px;color:var(--text3);margin-top:2px">${totalActual}hr / ${totalStd}hr</div>
+    </div>
+    <div style="${cardStyle}">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:4px">健康 (80-110%)</div>
+      <div style="font-size:20px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--green)">${healthyCount}</div>
+      <div style="font-size:9px;color:var(--text3);margin-top:2px">人</div>
+    </div>
+    <div style="${cardStyle}">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:4px">超載 (&gt;110%)</div>
+      <div style="font-size:20px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--blue)">${overCount}</div>
+      <div style="font-size:9px;color:var(--text3);margin-top:2px">人</div>
+    </div>
+    <div style="${cardStyle}">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:4px">不足 (&lt;80%)</div>
+      <div style="font-size:20px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--red)">${underCount}</div>
+      <div style="font-size:9px;color:var(--text3);margin-top:2px">人</div>
+    </div>
+  `;
+
+  // Individual utilization bars
+  el.innerHTML = activeEmps.map(e => {
+    const barWidth = Math.min(e.util, 150); // cap visual at 150%
+    const barColor = e.util >= 80 && e.util <= 110 ? 'var(--green)' : e.util >= 60 && e.util < 80 ? 'var(--orange)' : e.util > 110 && e.util <= 130 ? 'var(--blue)' : e.util < 60 ? 'var(--red)' : 'var(--purple)';
+    const statusLabel = e.util >= 80 && e.util <= 110 ? '正常' : e.util > 110 ? '超載' : '不足';
+    const statusColor = e.util >= 80 && e.util <= 110 ? 'var(--green)' : e.util > 110 ? 'var(--blue)' : 'var(--red)';
+    const diffStr = e.diff > 0 ? '+' + e.diff + 'hr' : e.diff < 0 ? e.diff + 'hr' : '±0';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+      <div style="width:80px;font-size:11px;font-weight:500;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${EMP_NAMES[e.name] || e.name}">${e.name}</div>
+      <div style="flex:1;position:relative;height:18px;background:var(--bg2);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${barWidth / 1.5}%;background:${barColor};border-radius:4px;transition:width .3s"></div>
+        <div style="position:absolute;left:${100 / 1.5}%;top:0;bottom:0;width:1px;background:var(--text3);opacity:.5"></div>
+      </div>
+      <div style="width:40px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:${barColor}">${e.util}%</div>
+      <div style="width:45px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3)">${e.total}/${e.std}</div>
+      <div style="width:36px;text-align:center;font-size:9px;font-weight:600;color:${statusColor}">${statusLabel}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('utilPanelBadge').textContent = currentWeek + ' · ' + activeEmps.length + '人';
+}
+
 function renderAll() {
   renderWeekSelector();
   renderKPIs();
@@ -2489,6 +2665,7 @@ function renderAll() {
   renderBurnRate();
   renderRisks();
   renderEmpBar();
+  renderUtilizationPanel();
   renderQualityAnalysis();
   renderEmpGrid();
   renderClientChart();
