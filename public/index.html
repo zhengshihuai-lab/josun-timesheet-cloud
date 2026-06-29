@@ -623,7 +623,7 @@ const DEPARTMENTS = {
     '李強','王業權','唐傳永','皇甫小博','汪子軒','焦明媛','張新怡','唐天生','張俊','唐天意'
   ], color: '#1EAAE0' },
   AC: { name: '自動控制部', employees: [
-    '王先沛','李志鴻','羅瑞來','曹永強','趙雅睿','閆麗鈴','王一書','劉彥儒','沈旋'
+    '王先沛','李志鴻','羅瑞來','曹永強','趙雅睿','閆麗鈴','王一書','劉彥儒','沈旋','王一青'
   ], color: '#7C5CFC' },
 };
 
@@ -876,6 +876,7 @@ function renderKPIs() {
     const total = empTotal(currentWeek, emp);
     const activeCats = CATS.filter(c => (data[c] || 0) > 0);
     const hData = HEATMAP[currentWeek]?.[emp];
+    const wDays = ['週一','週二','週三','週四','週五'];
     if (activeCats.length > 0 && total >= 20) {
       const maxCat = activeCats.reduce((a, b) => (data[a]||0) > (data[b]||0) ? a : b);
       if ((data[maxCat]||0) / total >= 0.8 && activeCats.length <= 2) highCount++;
@@ -1132,7 +1133,6 @@ function renderRisks() {
 
 function renderEmpBar() {
   const container = document.getElementById('empBarContainer');
-  const canvas = document.getElementById('empBarChart');
 
   // Guard: empty state when no data
   const empsWithHours = getActiveEmployees()
@@ -1204,6 +1204,13 @@ function renderEmpBar() {
 }
 
 function renderEmpGrid() {
+  function empDept(emp) {
+    for (const [key, dept] of Object.entries(DEPARTMENTS)) {
+      if (key === 'all') continue;
+      if (dept.employees.includes(emp)) return dept.name;
+    }
+    return '–';
+  }
   const el = document.getElementById('empGrid');
   const activeEmps = getActiveEmployees().filter(e => empTotal(currentWeek,e) > 0);
   document.getElementById('empCountBadge').textContent = activeEmps.length + ' 人';
@@ -1223,7 +1230,7 @@ function renderEmpGrid() {
     return `<div class="emp-card">
       <div class="emp-top">
         <div class="emp-name">${emp}</div>
-        <div class="emp-dept">系統集成部</div>
+        <div class="emp-dept">${empDept(emp)}</div>
       </div>
       <div class="emp-stats">
         <div class="emp-stat"><div class="num">${total}</div><div class="lbl">總工時</div></div>
@@ -1237,7 +1244,6 @@ function renderEmpGrid() {
 
 function renderClientChart() {
   const container = document.getElementById('clientChart').parentElement;
-  const canvas = document.getElementById('clientChart');
 
   // Empty state guard
   if (!weekHasData(currentWeek)) {
@@ -1262,6 +1268,7 @@ function renderClientChart() {
   })).filter(n => n.hours > 0);
 
   if (natureHours.length === 0) {
+    if (charts.client) { charts.client.destroy(); charts.client = null; }
     container.innerHTML = getEmptyStateHTML('本週尚無工時性質數據');
     return;
   }
@@ -1493,15 +1500,19 @@ function aggregateByPeriod(data, periodMap) {
 
 function setGranularity(g) {
   granularity = g;
-  document.querySelectorAll('#granularitySelector .week-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
+  document.querySelectorAll('#granularitySelector .week-btn').forEach(b => {
+    b.classList.remove('active');
+    if (b.textContent.trim() === (g === 'week' ? '每週' : g === 'month' ? '每月' : '每季')) b.classList.add('active');
+  });
   renderTrends();
 }
 
 function setForecast(f) {
   forecastWeeks = f;
-  document.querySelectorAll('#forecastSelector .week-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
+  document.querySelectorAll('#forecastSelector .week-btn').forEach(b => {
+    b.classList.remove('active');
+    if (b.textContent.trim() === '+' + f + '週') b.classList.add('active');
+  });
   renderTrends();
 }
 
@@ -1638,9 +1649,10 @@ function renderDeptTrend() {
   }
   const ctx = document.getElementById('deptTrendChart').getContext('2d');
 
-  // SI employees vs AC employees — always show all departments for comparison
+  // SI employees vs AC employees vs SE employees — always show all departments for comparison
   const siEmps = DEPARTMENTS.SI.employees;
   const acEmps = DEPARTMENTS.AC.employees;
+  const seEmps = DEPARTMENTS.SE.employees;
 
   const siData = labels.map(p => {
     return siEmps.reduce((s, e) => {
@@ -1656,10 +1668,18 @@ function renderDeptTrend() {
     }, 0);
   });
 
+  const seData = labels.map(p => {
+    return seEmps.reduce((s, e) => {
+      const d = periodData[p]?.[e];
+      return s + (d ? Object.values(d).reduce((a, v) => a + v, 0) : 0);
+    }, 0);
+  });
+
   // Averages
   const _siCount = Math.max(1, siEmps.filter(e => empTotal(getLatestWeekWithData(),e)>0).length);
   const siAvg = siData.map(v => Math.round(v / _siCount));
   const acAvg = acData.map(v => Math.round(v / acEmps.length));
+  const seAvg = seData.map(v => Math.round(v / seEmps.length));
 
   charts.deptTrend = new Chart(ctx, {
     type: 'bar',
@@ -1668,8 +1688,10 @@ function renderDeptTrend() {
       datasets: [
         { label: '系統集成部 (人均)', data: siAvg, backgroundColor: '#19B08F80', borderRadius: 6, order: 2 },
         { label: '自動控制部 (人均)', data: acAvg, backgroundColor: '#7C5CFC80', borderRadius: 6, order: 2 },
+        { label: '系統工程部 (人均)', data: seAvg, backgroundColor: '#1EAAE080', borderRadius: 6, order: 2 },
         { label: 'SI 部門總計', data: siData, type: 'line', borderColor: '#19B08F', borderWidth: 2, pointRadius: 4, tension: 0.3, fill: false, order: 1 },
-        { label: 'AC 部門總計', data: acData, type: 'line', borderColor: '#7C5CFC', borderWidth: 2, pointRadius: 4, tension: 0.3, fill: false, order: 1 }
+        { label: 'AC 部門總計', data: acData, type: 'line', borderColor: '#7C5CFC', borderWidth: 2, pointRadius: 4, tension: 0.3, fill: false, order: 1 },
+        { label: 'SE 部門總計', data: seData, type: 'line', borderColor: '#1EAAE0', borderWidth: 2, pointRadius: 4, tension: 0.3, fill: false, order: 1 }
       ]
     },
     options: {
@@ -1790,9 +1812,9 @@ function renderUtilDist() {
 
 function generateSuggestions() {
   const suggestions = [];
-  const _dw = getDataWeeks();
-  const lastWeek = _dw.length > 0 ? _dw[_dw.length - 1] : WEEKS[0];
-  const prevWeek = _dw.length > 1 ? _dw[_dw.length - 2] : null;
+  const lastWeek = currentWeek;
+  const weekIdx = WEEKS.indexOf(currentWeek);
+  const prevWeek = weekIdx > 0 ? WEEKS[weekIdx - 1] : null;
   const activeEmps = getActiveEmployees().filter(e => empTotal(lastWeek, e) > 0);
 
   // 1. Workload imbalance
