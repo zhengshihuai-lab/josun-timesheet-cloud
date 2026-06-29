@@ -902,14 +902,20 @@ function animateValue(id, target, unit) {
 }
 
 function renderWeeklyTrend() {
-  const ctx = document.getElementById('weeklyTrendChart').getContext('2d');
+  const wrap = document.getElementById('weeklyTrendChart').parentElement;
   if (charts.weeklyTrend) charts.weeklyTrend.destroy();
 
   const dw = getDataWeeks();
   if (dw.length === 0) {
-    document.getElementById('weeklyTrendChart').parentElement.innerHTML = getEmptyStateHTML('尚無週趨勢數據');
+    wrap.innerHTML = getEmptyStateHTML('尚無週趨勢數據');
     return;
   }
+
+  // Restore canvas if previously replaced by empty state
+  if (!wrap.querySelector('canvas')) {
+    wrap.innerHTML = '<canvas id="weeklyTrendChart"></canvas>';
+  }
+  const ctx = document.getElementById('weeklyTrendChart').getContext('2d');
 
   const activeEmps = getActiveEmployees().filter(e => {
     return dw.some(w => empTotal(w, e) > 0);
@@ -938,13 +944,19 @@ function renderWeeklyTrend() {
 }
 
 function renderCatDonut() {
-  const ctx = document.getElementById('catDonut').getContext('2d');
+  const wrap = document.getElementById('catDonut').parentElement;
   if (charts.catDonut) charts.catDonut.destroy();
 
   if (!weekHasData(currentWeek)) {
-    document.getElementById('catDonut').parentElement.innerHTML = getEmptyStateHTML('本週尚無任務分類數據');
+    wrap.innerHTML = getEmptyStateHTML('本週尚無任務分類數據');
     return;
   }
+
+  // Restore canvas if previously replaced by empty state
+  if (!wrap.querySelector('canvas')) {
+    wrap.innerHTML = '<canvas id="catDonut"></canvas>';
+  }
+  const ctx = document.getElementById('catDonut').getContext('2d');
 
   const data = CATS.map(c => catTotal(currentWeek, c));
   const total = data.reduce((a,b) => a+b, 0);
@@ -1288,13 +1300,19 @@ function renderClientChart() {
 }
 
 function renderNatureChart() {
-  const ctx = document.getElementById('natureChart').getContext('2d');
+  const wrap = document.getElementById('natureChart').parentElement;
   if (charts.nature) charts.nature.destroy();
 
   if (!weekHasData(currentWeek)) {
-    document.getElementById('natureChart').parentElement.innerHTML = getEmptyStateHTML('本週尚無工時性質數據');
+    wrap.innerHTML = getEmptyStateHTML('本週尚無工時性質數據');
     return;
   }
+
+  // Restore canvas if previously replaced by empty state
+  if (!wrap.querySelector('canvas')) {
+    wrap.innerHTML = '<canvas id="natureChart"></canvas>';
+  }
+  const ctx = document.getElementById('natureChart').getContext('2d');
 
   const natures = Object.keys(NATURE);
   const data = natures.map(n => natureTotal(currentWeek, n));
@@ -1314,14 +1332,20 @@ function renderNatureChart() {
 }
 
 function renderCatTrend() {
-  const ctx = document.getElementById('catTrendChart').getContext('2d');
+  const wrap = document.getElementById('catTrendChart').parentElement;
   if (charts.catTrend) charts.catTrend.destroy();
 
   const dw = getDataWeeks();
   if (dw.length === 0) {
-    document.getElementById('catTrendChart').parentElement.innerHTML = getEmptyStateHTML('尚無類別趨勢數據');
+    wrap.innerHTML = getEmptyStateHTML('尚無類別趨勢數據');
     return;
   }
+
+  // Restore canvas if previously replaced by empty state
+  if (!wrap.querySelector('canvas')) {
+    wrap.innerHTML = '<canvas id="catTrendChart"></canvas>';
+  }
+  const ctx = document.getElementById('catTrendChart').getContext('2d');
 
   const topCats = ['專案管理','前端開發','後端開發','系統整合','圖控開發','設計規劃'];
   const datasets = topCats.map((cat, i) => ({
@@ -1514,16 +1538,22 @@ function getPeriodData() {
 }
 
 function renderTrendForecast() {
-  const ctx = document.getElementById('trendForecastChart').getContext('2d');
+  const wrap = document.getElementById('trendForecastChart').parentElement;
   if (charts.trendForecast) charts.trendForecast.destroy();
 
   const periodData = getPeriodData();
   const labels = getPeriodLabels();
 
   if (labels.length === 0) {
-    document.getElementById('trendForecastChart').parentElement.innerHTML = getEmptyStateHTML('尚無趨勢預測數據');
+    wrap.innerHTML = getEmptyStateHTML('尚無趨勢預測數據');
     return;
   }
+
+  // Restore canvas if previously replaced by empty state
+  if (!wrap.querySelector('canvas')) {
+    wrap.innerHTML = '<canvas id="trendForecastChart"></canvas>';
+  }
+  const ctx = document.getElementById('trendForecastChart').getContext('2d');
 
   const activeEmps = getActiveEmployees().filter(e => selectedEmps.has(e));
 
@@ -1591,16 +1621,22 @@ function renderTrendForecast() {
 }
 
 function renderDeptTrend() {
-  const ctx = document.getElementById('deptTrendChart').getContext('2d');
+  const wrap = document.getElementById('deptTrendChart').parentElement;
   if (charts.deptTrend) charts.deptTrend.destroy();
 
   const periodData = getPeriodData();
   const labels = getPeriodLabels();
 
   if (labels.length === 0) {
-    document.getElementById('deptTrendChart').parentElement.innerHTML = getEmptyStateHTML('尚無部門趨勢數據');
+    wrap.innerHTML = getEmptyStateHTML('尚無部門趨勢數據');
     return;
   }
+
+  // Restore canvas if previously replaced by empty state
+  if (!wrap.querySelector('canvas')) {
+    wrap.innerHTML = '<canvas id="deptTrendChart"></canvas>';
+  }
+  const ctx = document.getElementById('deptTrendChart').getContext('2d');
 
   // SI employees vs AC employees — always show all departments for comparison
   const siEmps = DEPARTMENTS.SI.employees;
@@ -1650,16 +1686,22 @@ function renderDeptTrend() {
 }
 
 function renderNatureTrend() {
-  const ctx = document.getElementById('natureTrendChart').getContext('2d');
+  const wrap = document.getElementById('natureTrendChart').parentElement;
   if (charts.natureTrend) charts.natureTrend.destroy();
 
   const periodData = getPeriodData();
   const labels = getPeriodLabels();
 
   if (labels.length === 0) {
-    document.getElementById('natureTrendChart').parentElement.innerHTML = getEmptyStateHTML('尚無工時性質趨勢數據');
+    wrap.innerHTML = getEmptyStateHTML('尚無工時性質趨勢數據');
     return;
   }
+
+  // Restore canvas if previously replaced by empty state
+  if (!wrap.querySelector('canvas')) {
+    wrap.innerHTML = '<canvas id="natureTrendChart"></canvas>';
+  }
+  const ctx = document.getElementById('natureTrendChart').getContext('2d');
   const natures = Object.keys(NATURE);
 
   const datasets = natures.map((n, i) => ({
@@ -1696,8 +1738,7 @@ function renderNatureTrend() {
 
 function renderUtilDist() {
   const wrap = document.getElementById('utilDistChart').parentElement;
-  const _utilWeek = getLatestWeekWithData();
-  if (!weekHasData(_utilWeek)) {
+  if (!weekHasData(currentWeek)) {
     if (charts.utilDist) { charts.utilDist.destroy(); charts.utilDist = null; }
     wrap.innerHTML = getEmptyStateHTML('尚無利用率數據');
     return;
@@ -1708,14 +1749,14 @@ function renderUtilDist() {
   const ctx = document.getElementById('utilDistChart').getContext('2d');
   if (charts.utilDist) charts.utilDist.destroy();
 
-  const activeEmps = getActiveEmployees().filter(e => empTotal(_utilWeek, e) > 0);
+  const activeEmps = getActiveEmployees().filter(e => empTotal(currentWeek, e) > 0);
   if (activeEmps.length === 0) {
     wrap.innerHTML = getEmptyStateHTML('尚無利用率數據');
     return;
   }
   const utils = activeEmps.map(e => {
     const std = getStdHours(e);
-    return std > 0 ? Math.round((empTotal(_utilWeek, e) / std) * 100) : 0;
+    return std > 0 ? Math.round((empTotal(currentWeek, e) / std) * 100) : 0;
   });
 
   // Bucket into ranges
@@ -2034,13 +2075,19 @@ function renderDeptOverview() {
 }
 
 function renderDeptProportion() {
-  const ctx = document.getElementById('deptPropChart').getContext('2d');
+  const wrap = document.getElementById('deptPropChart').parentElement;
   if (charts.deptProp) charts.deptProp.destroy();
 
   if (!weekHasData(currentWeek)) {
-    document.getElementById('deptPropChart').parentElement.innerHTML = getEmptyStateHTML('本週尚無部門佔比數據');
+    wrap.innerHTML = getEmptyStateHTML('本週尚無部門佔比數據');
+    document.getElementById('deptPropBadge').textContent = '–';
     return;
   }
+  // Restore canvas if previously replaced by empty state
+  if (!wrap.querySelector('canvas')) {
+    wrap.innerHTML = '<canvas id="deptPropChart"></canvas>';
+  }
+  const ctx = document.getElementById('deptPropChart').getContext('2d');
 
   const depts = [
     { key: 'SI', name: '系統集成部', color: '#19B08F' },
@@ -2115,10 +2162,16 @@ function renderDeptAvgChart() {
     tension: 0.3, fill: true
   }));
 
-  // Add baseline reference line
+  // Add dynamic baseline reference line (weighted avg of active employees' standard hours)
+  const baselineData = dw.map(w => {
+    const allEmps = Object.values(DEPARTMENTS).flatMap(d => d.employees);
+    const uniqueEmps = [...new Set(allEmps)];
+    const active = uniqueEmps.filter(e => empTotal(w, e) > 0);
+    return active.length ? Math.round(active.reduce((s, e) => s + getStdHours(e), 0) / active.length * 10) / 10 : 40;
+  });
   datasets.push({
-    label: '基準 (40hr)',
-    data: dw.map(() => 40),
+    label: '基準 (加權人均 ' + baselineData[baselineData.length - 1] + 'hr)',
+    data: baselineData,
     borderColor: '#5E6E8580',
     borderWidth: 1, borderDash: [6, 4],
     pointRadius: 0, fill: false
