@@ -120,19 +120,87 @@ function readCacheFile(): any {
   return null;
 }
 
+/**
+ * Auto-generate week list from a fixed start date to current ISO week + futureWeeks.
+ * Returns { weeks: string[], weekDates: Record<string, string> }
+ */
+function generateWeeks(futureWeeks: number = 2): { weeks: string[]; weekDates: Record<string, string> } {
+  // Fixed anchor: W19 of 2025 starts Monday May 5, 2025
+  const START_YEAR = 2025;
+  const START_WEEK = 19;
+  const START_MONDAY = new Date(Date.UTC(2025, 4, 5)); // May 5, 2025
+
+  const now = new Date();
+  // Get ISO week number for current date
+  const tmp = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  tmp.setUTCDate(tmp.getUTCDate() + 4 - (tmp.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
+  const currentIsoWeek = Math.ceil(((tmp.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  const currentYear = tmp.getUTCFullYear();
+
+  const weeks: string[] = [];
+  const weekDates: Record<string, string> = {};
+
+  let w = START_WEEK;
+  let monday = new Date(START_MONDAY);
+
+  while (true) {
+    const weekId = `W${w}`;
+    const friday = new Date(monday);
+    friday.setUTCDate(friday.getUTCDate() + 4);
+    weekDates[weekId] = `${monday.getUTCMonth() + 1}/${monday.getUTCDate()}~${friday.getUTCMonth() + 1}/${friday.getUTCDate()}`;
+    weeks.push(weekId);
+
+    // Stop if we've generated currentWeek + futureWeeks
+    if (w >= currentIsoWeek + futureWeeks) break;
+
+    // Advance to next week
+    w++;
+    monday = new Date(monday);
+    monday.setUTCDate(monday.getUTCDate() + 7);
+
+    // Handle ISO week year rollover (after W52/W53, next year starts at W1)
+    if (w > 53) {
+      const nextYearJan1 = new Date(Date.UTC(monday.getUTCFullYear(), 0, 1));
+      // Find the Monday of ISO week 1 of the new year
+      const dayOfWeek = nextYearJan1.getUTCDay() || 7;
+      const isoWeek1Monday = new Date(nextYearJan1);
+      if (dayOfWeek <= 4) {
+        isoWeek1Monday.setUTCDate(nextYearJan1.getUTCDate() - dayOfWeek + 1);
+      } else {
+        isoWeek1Monday.setUTCDate(nextYearJan1.getUTCDate() + (8 - dayOfWeek));
+      }
+      monday = isoWeek1Monday;
+      w = 1;
+    }
+  }
+
+  return { weeks, weekDates };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
 
+  // Auto-generate week list (W19 through current ISO week + 2 future weeks)
+  const autoWeeks = generateWeeks(2);
+
   // 1. Try Supabase first (real-time data)
   const sbData = await readFromSupabase();
   if (sbData && Object.keys(sbData.timesheet).length > 0) {
+    // Merge auto-generated weeks with Supabase data weeks
+    const mergedWeeks = [...new Set([...autoWeeks.weeks, ...sbData.weeks])].sort((a, b) => {
+      const na = parseInt(a.substring(1)), nb = parseInt(b.substring(1));
+      return na - nb;
+    });
+    const mergedDates = { ...autoWeeks.weekDates, ...sbData.weekDates };
+
     return res.status(200).json({
       success: true,
       source: 'supabase',
       lastUpdated: sbData.lastUpdated || new Date().toISOString(),
-      weeks: sbData.weeks,
-      weekDates: sbData.weekDates,
+      weeks: mergedWeeks,
+      weekDates: mergedDates,
       timesheet: sbData.timesheet,
       heatmap: sbData.heatmap,
       supabase: config.supabase.url ? { url: config.supabase.url, key: config.supabase.key } : null,
@@ -143,12 +211,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 2. Fallback to cache file
   const cache = readCacheFile();
   if (cache && cache.timesheet) {
+    const cacheWeeks = cache.weeks || [];
+    const mergedWeeks = [...new Set([...autoWeeks.weeks, ...cacheWeeks])].sort((a, b) => {
+      const na = parseInt(a.substring(1)), nb = parseInt(b.substring(1));
+      return na - nb;
+    });
+    const mergedDates = { ...autoWeeks.weekDates, ...(cache.weekDates || {}) };
+
     return res.status(200).json({
       success: true,
       source: 'cache',
       lastUpdated: cache.lastUpdated || new Date().toISOString(),
-      weeks: cache.weeks || [],
-      weekDates: cache.weekDates || {},
+      weeks: mergedWeeks,
+      weekDates: mergedDates,
       timesheet: cache.timesheet || {},
       heatmap: cache.heatmap || {},
       supabase: config.supabase.url ? { url: config.supabase.url, key: config.supabase.key } : null,
@@ -156,7 +231,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  // 3. No data available
+  // 3. No data available — still return auto-generated weeks
   console.error('[data] No data source available');
   return res.status(200).json({
     success: false,
@@ -164,8 +239,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     error: 'No data source available',
     timesheet: {},
     heatmap: {},
-    weeks: [],
-    weekDates: {},
+    weeks: autoWeeks.weeks,
+    weekDates: autoWeeks.weekDates,
     supabase: config.supabase.url ? { url: config.supabase.url, key: config.supabase.key } : null,
     lastUpdated: null,
     timestamp: new Date().toISOString(),

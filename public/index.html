@@ -611,8 +611,40 @@ const EMPLOYEES = [
   // AC - 自動控制部 (10人)
   '王先沛','李志鴻','羅瑞來','曹永強','趙雅睿','閆麗鈴','王一書','劉彥儒','沈旋','王一青'
 ];
-const WEEKS = ['W19','W20','W21','W22','W23','W24','W25','W26','W27'];
-const WEEK_DATES = {W19:'5/5~5/9',W20:'5/12~5/16',W21:'5/19~5/23',W22:'5/26~5/30',W23:'6/2~6/8',W24:'6/9~6/15',W25:'6/16~6/22',W26:'6/23~6/27',W27:'6/30~7/4'};
+const WEEKS = ['W19','W20','W21','W22','W23','W24','W25'];
+const WEEK_DATES = {};
+
+// Auto-generate week list: W19 (May 5, 2025) through current ISO week + 2 future weeks
+(function generateWeeks() {
+  var START_WEEK = 19;
+  var monday = new Date(Date.UTC(2025, 4, 5)); // May 5, 2025 = W19 Monday
+  var now = new Date();
+  var tmp = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  tmp.setUTCDate(tmp.getUTCDate() + 4 - (tmp.getUTCDay() || 7));
+  var yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
+  var currentIsoWeek = Math.ceil(((tmp.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  var w = START_WEEK;
+  while (true) {
+    var wid = 'W' + w;
+    var friday = new Date(monday);
+    friday.setUTCDate(friday.getUTCDate() + 4);
+    WEEK_DATES[wid] = (monday.getUTCMonth()+1) + '/' + monday.getUTCDate() + '~' + (friday.getUTCMonth()+1) + '/' + friday.getUTCDate();
+    if (!WEEKS.includes(wid)) WEEKS.push(wid);
+    if (w >= currentIsoWeek + 2) break;
+    w++;
+    monday = new Date(monday);
+    monday.setUTCDate(monday.getUTCDate() + 7);
+    if (w > 53) {
+      var nextJan1 = new Date(Date.UTC(monday.getUTCFullYear(), 0, 1));
+      var dow = nextJan1.getUTCDay() || 7;
+      var isoMon = new Date(nextJan1);
+      isoMon.setUTCDate(nextJan1.getUTCDate() + (dow <= 4 ? 1 - dow : 8 - dow));
+      monday = isoMon;
+      w = 1;
+    }
+  }
+  WEEKS.sort(function(a, b) { return parseInt(a.substring(1)) - parseInt(b.substring(1)); });
+})();
 
 const DEPARTMENTS = {
   all: { name: '全部部門', employees: EMPLOYEES, color: '#19B08F' },
@@ -2733,7 +2765,7 @@ async function fetchAndMergeData() {
         json.weeks.forEach(w => {
           if (!WEEKS.includes(w)) WEEKS.push(w);
         });
-        WEEKS.sort();
+        WEEKS.sort((a, b) => parseInt(a.substring(1)) - parseInt(b.substring(1)));
       }
 
       // Update week dates
@@ -2905,6 +2937,6 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
 }
 </script>
-<div style="position:fixed;bottom:4px;right:8px;font-size:9px;color:#5E6E8580;font-family:monospace;pointer-events:none;z-index:9999">v2026-06-29-sync2</div>
+<div style="position:fixed;bottom:4px;right:8px;font-size:9px;color:#5E6E8580;font-family:monospace;pointer-events:none;z-index:9999">v2026-06-29-autoweek</div>
 </body>
 </html>
