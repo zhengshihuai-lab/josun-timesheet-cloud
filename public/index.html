@@ -664,7 +664,7 @@ const RISKS = [
 ];
 
 // ===== STATE =====
-let currentWeek = 'W26';
+let currentWeek = 'W19';
 let currentDept = 'all';
 let charts = {};
 let _lastUpdated = null; // Track API data freshness
@@ -691,6 +691,21 @@ function natureTotal(week, nature) {
 function heatLevel(h) {
   if(h===0) return 'h0'; if(h<=2) return 'h1'; if(h<=4) return 'h2';
   if(h<=6) return 'h3'; if(h<=8) return 'h4'; if(h<=10) return 'h5'; return 'h6';
+}
+
+// ── Data-aware week helpers (prevent phantom data for empty weeks) ──
+function weekHasData(w) {
+  return TS[w] && Object.keys(TS[w]).length > 0;
+}
+function getDataWeeks() {
+  return WEEKS.filter(weekHasData);
+}
+function getLatestWeekWithData() {
+  const dw = getDataWeeks();
+  return dw.length > 0 ? dw[dw.length - 1] : WEEKS[0];
+}
+function getEmptyStateHTML(msg) {
+  return '<div style="text-align:center;padding:40px 24px;color:var(--text3)"><div style="font-size:28px;margin-bottom:8px">&#128202;</div><div style="font-size:13px;font-weight:600">' + (msg || '本週尚無數據') + '</div><div style="font-size:11px;margin-top:4px;opacity:.7">請等待員工填寫工時或執行數據同步</div></div>';
 }
 
 function setDepartment(dept) {
@@ -826,10 +841,18 @@ function renderWeeklyTrend() {
   const ctx = document.getElementById('weeklyTrendChart').getContext('2d');
   if (charts.weeklyTrend) charts.weeklyTrend.destroy();
 
-  const activeEmps = getActiveEmployees().filter(e => empTotal(currentWeek, e) > 0).slice(0, 6);
+  const dw = getDataWeeks();
+  if (dw.length === 0) {
+    document.getElementById('weeklyTrendChart').parentElement.innerHTML = getEmptyStateHTML('尚無週趨勢數據');
+    return;
+  }
+
+  const activeEmps = getActiveEmployees().filter(e => {
+    return dw.some(w => empTotal(w, e) > 0);
+  }).slice(0, 6);
   const datasets = activeEmps.map((emp, i) => ({
     label: emp,
-    data: WEEKS.map(w => empTotal(w, emp)),
+    data: dw.map(w => empTotal(w, emp)),
     borderColor: CAT_COLORS[i % CAT_COLORS.length],
     backgroundColor: CAT_COLORS[i % CAT_COLORS.length] + '20',
     borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, tension: .4, fill: false
@@ -837,7 +860,7 @@ function renderWeeklyTrend() {
 
   charts.weeklyTrend = new Chart(ctx, {
     type: 'line',
-    data: { labels: WEEKS.map(w => w + ' ' + WEEK_DATES[w]), datasets },
+    data: { labels: dw.map(w => w + ' ' + (WEEK_DATES[w]||'')), datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { position: 'bottom', labels: { color: '#95A3B8', font: { size: 10 }, boxWidth: 12, padding: 12 } } },
@@ -847,7 +870,7 @@ function renderWeeklyTrend() {
       }
     }
   });
-  document.getElementById('trendBadge').textContent = WEEKS[0] + '–' + WEEKS[WEEKS.length-1];
+  document.getElementById('trendBadge').textContent = dw[0] + '–' + dw[dw.length - 1];
 }
 
 function renderCatDonut() {
@@ -883,7 +906,12 @@ function renderCatDonut() {
 
 function renderHeatmap() {
   const container = document.getElementById('heatmapContainer');
-  const hData = HEATMAP[currentWeek] || HEATMAP['W22'];
+  const hData = HEATMAP[currentWeek];
+  if (!hData || Object.keys(hData).length === 0) {
+    container.innerHTML = getEmptyStateHTML('本週尚無每日工時數據');
+    document.getElementById('heatBadge').textContent = DEPARTMENTS[currentDept].name + ' · ' + currentWeek;
+    return;
+  }
   const days = ['週一','週二','週三','週四','週五'];
   const deptEmps = new Set(getActiveEmployees());
   const emps = Object.keys(hData).filter(e => deptEmps.has(e));
@@ -990,17 +1018,20 @@ function renderClientChart() {
   const ctx = document.getElementById('clientChart').getContext('2d');
   if (charts.client) charts.client.destroy();
 
-  // Aggregate by client from all weeks
-  const clients = {};
-  WEEKS.forEach(w => {
-    EMPLOYEES.forEach(e => {
-      // Using client names from the task data isn't available, so we'll use project names
-    });
-  });
+  // Compute actual total from current week TS data
+  const actualTotal = weekTotal(currentWeek);
+  const totalEst = BURN_DATA.reduce((s, p) => s + p.est, 0);
 
-  // Use project burn data as proxy
+  // If no data for this week, show empty state
+  if (actualTotal === 0 && !weekHasData(currentWeek)) {
+    document.getElementById('clientChart').parentElement.innerHTML = getEmptyStateHTML('本週尚無專案工時數據');
+    return;
+  }
+
+  // Scale BURN_DATA estimates proportionally to match actual total hours
+  const scale = actualTotal > 0 ? actualTotal / totalEst : 0;
   const labels = BURN_DATA.map(p => p.name);
-  const actual = BURN_DATA.map(p => p.actual);
+  const actual = BURN_DATA.map(p => Math.round(p.est * scale * 10) / 10);
   const est = BURN_DATA.map(p => p.est);
 
   charts.client = new Chart(ctx, {
@@ -1008,7 +1039,7 @@ function renderClientChart() {
     data: {
       labels,
       datasets: [
-        { label: '實際工時', data: actual, backgroundColor: '#19B08F80', borderRadius: 4 },
+        { label: '實際工時(估算)', data: actual, backgroundColor: '#19B08F80', borderRadius: 4 },
         { label: '預估工時', data: est, backgroundColor: '#232D4060', borderRadius: 4 }
       ]
     },
@@ -1048,10 +1079,11 @@ function renderCatTrend() {
   const ctx = document.getElementById('catTrendChart').getContext('2d');
   if (charts.catTrend) charts.catTrend.destroy();
 
+  const dw = getDataWeeks();
   const topCats = ['專案管理','前端開發','後端開發','系統整合','圖控開發','設計規劃'];
   const datasets = topCats.map((cat, i) => ({
     label: cat,
-    data: WEEKS.map(w => catTotal(w, cat)),
+    data: dw.map(w => catTotal(w, cat)),
     borderColor: CAT_COLORS[CATS.indexOf(cat)],
     backgroundColor: CAT_COLORS[CATS.indexOf(cat)] + '15',
     borderWidth: 2, tension: .4, fill: true, pointRadius: 3
@@ -1059,7 +1091,7 @@ function renderCatTrend() {
 
   charts.catTrend = new Chart(ctx, {
     type: 'line',
-    data: { labels: WEEKS, datasets },
+    data: { labels: dw, datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { position: 'bottom', labels: { color: '#95A3B8', font: { size: 10 }, boxWidth: 12, padding: 8 } } },
@@ -1151,8 +1183,8 @@ let forecastWeeks = 2;
 let selectedEmps = new Set(['萌萌','小熊','蒙海','羅潔','Marin','廖嘉良']);
 
 // Week-to-month/quarter mapping
-const WEEK_MONTH = {W19:'5月',W20:'5月',W21:'5月',W22:'5月',W23:'6月',W24:'6月',W25:'6月'};
-const WEEK_QUARTER = {W19:'Q2',W20:'Q2',W21:'Q2',W22:'Q2',W23:'Q2',W24:'Q2',W25:'Q2'};
+const WEEK_MONTH = {W19:'5月',W20:'5月',W21:'5月',W22:'5月',W23:'6月',W24:'6月',W25:'6月',W26:'6月',W27:'7月'};
+const WEEK_QUARTER = {W19:'Q2',W20:'Q2',W21:'Q2',W22:'Q2',W23:'Q2',W24:'Q2',W25:'Q2',W26:'Q2',W27:'Q3'};
 
 // Linear regression for forecasting
 function linearRegression(data) {
@@ -1216,7 +1248,9 @@ function toggleEmpFilter(emp) {
 
 function renderEmpFilterChips() {
   const el = document.getElementById('empFilterChips');
-  const activeEmps = getActiveEmployees().filter(e => empTotal(WEEKS[WEEKS.length-1], e) > 0 || empTotal(WEEKS[WEEKS.length-2], e) > 0);
+  const _lw = getLatestWeekWithData();
+  const _lw2 = getDataWeeks().slice(-2)[0] || _lw;
+  const activeEmps = getActiveEmployees().filter(e => empTotal(_lw, e) > 0 || empTotal(_lw2, e) > 0);
   el.innerHTML = `<div class="cat-chip" style="cursor:pointer;${selectedEmps.size===activeEmps.length?'background:var(--josun);color:#fff;border-color:var(--josun)':''}" onclick="selectedEmps=new Set(getActiveEmployees());renderEmpFilterChips();renderTrendForecast()">全選</div>` +
     activeEmps.map(e => {
       const active = selectedEmps.has(e);
@@ -1225,15 +1259,15 @@ function renderEmpFilterChips() {
 }
 
 function getPeriodLabels() {
-  if (granularity === 'week') return WEEKS;
-  if (granularity === 'month') return [...new Set(WEEKS.map(w => WEEK_MONTH[w]))];
-  return [...new Set(WEEKS.map(w => WEEK_QUARTER[w]))];
+  const dw = getDataWeeks();
+  if (granularity === 'week') return dw;
+  const map = granularity === 'month' ? WEEK_MONTH : WEEK_QUARTER;
+  return [...new Set(dw.map(w => map[w]).filter(Boolean))];
 }
 
 function getPeriodData() {
   if (granularity === 'week') return TS;
-  const map = granularity === 'month' ? WEEK_MONTH : WEEK_QUARTER;
-  return aggregateByPeriod(TS, map);
+  return aggregateByPeriod(TS, granularity === 'month' ? WEEK_MONTH : WEEK_QUARTER);
 }
 
 function renderTrendForecast() {
@@ -1286,7 +1320,7 @@ function renderTrendForecast() {
   // Add forecast labels
   const allLabels = [...labels];
   for (let i = 1; i <= forecastWeeks; i++) {
-    allLabels.push('W' + (parseInt(WEEKS[WEEKS.length - 1].substring(1)) + i) + ' (預)');
+    allLabels.push('W' + (parseInt(getLatestWeekWithData().substring(1)) + i) + ' (預)');
   }
 
   charts.trendForecast = new Chart(ctx, {
@@ -1333,7 +1367,8 @@ function renderDeptTrend() {
   });
 
   // Averages
-  const siAvg = siData.map(v => Math.round(v / siEmps.filter(e => empTotal(WEEKS[WEEKS.length-1],e)>0).length));
+  const _siCount = Math.max(1, siEmps.filter(e => empTotal(getLatestWeekWithData(),e)>0).length);
+  const siAvg = siData.map(v => Math.round(v / _siCount));
   const acAvg = acData.map(v => Math.round(v / acEmps.length));
 
   charts.deptTrend = new Chart(ctx, {
@@ -1404,8 +1439,13 @@ function renderUtilDist() {
   const ctx = document.getElementById('utilDistChart').getContext('2d');
   if (charts.utilDist) charts.utilDist.destroy();
 
-  const activeEmps = getActiveEmployees().filter(e => empTotal(WEEKS[WEEKS.length-1], e) > 0);
-  const utils = activeEmps.map(e => Math.round((empTotal(WEEKS[WEEKS.length-1], e) / 40) * 100));
+  const _utilWeek = getLatestWeekWithData();
+  const activeEmps = getActiveEmployees().filter(e => empTotal(_utilWeek, e) > 0);
+  if (activeEmps.length === 0) {
+    ctx.canvas.parentElement.innerHTML = getEmptyStateHTML('尚無利用率數據');
+    return;
+  }
+  const utils = activeEmps.map(e => Math.round((empTotal(_utilWeek, e) / 40) * 100));
 
   // Bucket into ranges
   const buckets = {'<60%': 0, '60-80%': 0, '80-100%': 0, '100-110%': 0, '>110%': 0};
@@ -1438,8 +1478,9 @@ function renderUtilDist() {
 
 function generateSuggestions() {
   const suggestions = [];
-  const lastWeek = WEEKS[WEEKS.length - 1];
-  const prevWeek = WEEKS[WEEKS.length - 2];
+  const _dw = getDataWeeks();
+  const lastWeek = _dw.length > 0 ? _dw[_dw.length - 1] : WEEKS[0];
+  const prevWeek = _dw.length > 1 ? _dw[_dw.length - 2] : null;
   const activeEmps = getActiveEmployees().filter(e => empTotal(lastWeek, e) > 0);
 
   // 1. Workload imbalance
@@ -1520,7 +1561,7 @@ function generateSuggestions() {
   }
 
   // 7. Trend projection
-  const weekTotals = WEEKS.map(w => weekTotal(w));
+  const weekTotals = getDataWeeks().map(w => weekTotal(w));
   const { slope } = linearRegression(weekTotals);
   if (slope < -2) {
     suggestions.push({
@@ -1743,6 +1784,7 @@ function renderDeptAvgChart() {
   const ctx = document.getElementById('deptAvgChart').getContext('2d');
   if (charts.deptAvg) charts.deptAvg.destroy();
 
+  const dw = getDataWeeks();
   const depts = [
     { key: 'SI', name: '系統集成部', color: '#19B08F' },
     { key: 'SE', name: '系統工程部', color: '#1EAAE0' },
@@ -1751,7 +1793,7 @@ function renderDeptAvgChart() {
 
   const datasets = depts.map(d => ({
     label: d.name,
-    data: WEEKS.map(w => {
+    data: dw.map(w => {
       const emps = DEPARTMENTS[d.key].employees;
       const active = emps.filter(e => empTotal(w, e) > 0).length;
       const total = emps.reduce((s, e) => s + empTotal(w, e), 0);
@@ -1766,7 +1808,7 @@ function renderDeptAvgChart() {
   // Add baseline reference line
   datasets.push({
     label: '基準 (40hr)',
-    data: WEEKS.map(() => 40),
+    data: dw.map(() => 40),
     borderColor: '#5E6E8580',
     borderWidth: 1, borderDash: [6, 4],
     pointRadius: 0, fill: false
@@ -1774,7 +1816,7 @@ function renderDeptAvgChart() {
 
   charts.deptAvg = new Chart(ctx, {
     type: 'line',
-    data: { labels: WEEKS, datasets },
+    data: { labels: dw, datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
@@ -1807,6 +1849,14 @@ function renderQualityAnalysis() {
   const issues = [];
   const activeEmps = getActiveEmployees().filter(e => empTotal(currentWeek, e) > 0);
   const weekData = TS[currentWeek];
+
+  // Guard: if no data for this week, show empty state instead of false "all passed"
+  if (!weekData || activeEmps.length === 0) {
+    el.innerHTML = getEmptyStateHTML('本週尚無工時數據，無法進行品質分析');
+    document.getElementById('qualityBadge').textContent = DEPARTMENTS[currentDept].name + ' · ' + currentWeek;
+    return issues;
+  }
+
   const weekIdx = WEEKS.indexOf(currentWeek);
   const prevWeek = weekIdx > 0 ? WEEKS[weekIdx - 1] : null;
 
@@ -2237,7 +2287,8 @@ function renderAll() {
   renderTrends();
 }
 
-// Boot: render with embedded data immediately, then fetch fresh data
+// Boot: set currentWeek to latest with data before first render, then fetch fresh data
+currentWeek = getLatestWeekWithData();
 renderAll();
 fetchAndMergeData();
 </script>
