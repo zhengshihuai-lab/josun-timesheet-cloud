@@ -761,6 +761,18 @@ function heatLevel(h) {
   if(h<=6) return 'h3'; if(h<=8) return 'h4'; if(h<=10) return 'h5'; return 'h6';
 }
 
+// Safe chart wrapper getter — handles canvas replaced by empty state HTML
+function getChartWrap(canvasId) {
+  var canvas = document.getElementById(canvasId);
+  if (canvas) return canvas.parentElement;
+  // Canvas was replaced by empty state. Find wrapper by searching all chart-wrap and styled containers.
+  var wraps = document.querySelectorAll('.chart-wrap, [style*="180px"][style*="flex-shrink"], [style*="160px"][style*="flex-shrink"]');
+  for (var i = 0; i < wraps.length; i++) {
+    if (!wraps[i].querySelector('canvas') && wraps[i].querySelector('[style*="text-align"]')) return wraps[i];
+  }
+  return null;
+}
+
 // ── Data-aware week helpers (prevent phantom data for empty weeks) ──
 function weekHasData(w) {
   return TS[w] && Object.keys(TS[w]).length > 0;
@@ -935,7 +947,8 @@ function animateValue(id, target, unit) {
 }
 
 function renderWeeklyTrend() {
-  const wrap = document.getElementById('weeklyTrendChart').parentElement;
+  const wrap = getChartWrap('weeklyTrendChart');
+  if (!wrap) return;
   if (charts.weeklyTrend) charts.weeklyTrend.destroy();
 
   const dw = getDataWeeks();
@@ -981,8 +994,7 @@ function renderWeeklyTrend() {
 }
 
 function renderCatDonut() {
-  const canvas = document.getElementById('catDonut');
-  const wrap = canvas ? canvas.parentElement : document.querySelector('#catBadge').parentElement.querySelector('div[style*="180px"]');
+  const wrap = getChartWrap('catDonut');
   if (!wrap) return;
   if (charts.catDonut) { charts.catDonut.destroy(); charts.catDonut = null; }
 
@@ -1337,7 +1349,8 @@ function renderEmpGrid() {
 }
 
 function renderClientChart() {
-  const container = document.getElementById('clientChart').parentElement;
+  const container = getChartWrap('clientChart');
+  if (!container) return;
 
   // Empty state guard
   if (!weekHasData(currentWeek)) {
@@ -1401,7 +1414,8 @@ function renderClientChart() {
 }
 
 function renderNatureChart() {
-  const wrap = document.getElementById('natureChart').parentElement;
+  const wrap = getChartWrap('natureChart');
+  if (!wrap) return;
   if (charts.nature) charts.nature.destroy();
 
   if (!weekHasData(currentWeek)) {
@@ -1433,7 +1447,8 @@ function renderNatureChart() {
 }
 
 function renderCatTrend() {
-  const wrap = document.getElementById('catTrendChart').parentElement;
+  const wrap = getChartWrap('catTrendChart');
+  if (!wrap) return;
   if (charts.catTrend) charts.catTrend.destroy();
 
   const dw = getDataWeeks();
@@ -1646,7 +1661,8 @@ function getPeriodData() {
 }
 
 function renderTrendForecast() {
-  const wrap = document.getElementById('trendForecastChart').parentElement;
+  const wrap = getChartWrap('trendForecastChart');
+  if (!wrap) return;
   if (charts.trendForecast) charts.trendForecast.destroy();
 
   const periodData = getPeriodData();
@@ -1729,7 +1745,8 @@ function renderTrendForecast() {
 }
 
 function renderDeptTrend() {
-  const wrap = document.getElementById('deptTrendChart').parentElement;
+  const wrap = getChartWrap('deptTrendChart');
+  if (!wrap) return;
   if (charts.deptTrend) charts.deptTrend.destroy();
 
   const periodData = getPeriodData();
@@ -1805,7 +1822,8 @@ function renderDeptTrend() {
 }
 
 function renderNatureTrend() {
-  const wrap = document.getElementById('natureTrendChart').parentElement;
+  const wrap = getChartWrap('natureTrendChart');
+  if (!wrap) return;
   if (charts.natureTrend) charts.natureTrend.destroy();
 
   const periodData = getPeriodData();
@@ -1856,7 +1874,8 @@ function renderNatureTrend() {
 }
 
 function renderUtilDist() {
-  const wrap = document.getElementById('utilDistChart').parentElement;
+  const wrap = getChartWrap('utilDistChart');
+  if (!wrap) return;
   if (!weekHasData(currentWeek)) {
     if (charts.utilDist) { charts.utilDist.destroy(); charts.utilDist = null; }
     wrap.innerHTML = getEmptyStateHTML('尚無利用率數據');
@@ -2195,7 +2214,8 @@ function renderDeptOverview() {
 }
 
 function renderDeptProportion() {
-  const wrap = document.getElementById('deptPropChart').parentElement;
+  const wrap = getChartWrap('deptPropChart');
+  if (!wrap) return;
   if (charts.deptProp) charts.deptProp.destroy();
 
   if (!weekHasData(currentWeek)) {
@@ -2247,7 +2267,8 @@ function renderDeptProportion() {
 }
 
 function renderDeptAvgChart() {
-  const wrap = document.getElementById('deptAvgChart').parentElement;
+  const wrap = getChartWrap('deptAvgChart');
+  if (!wrap) return;
   const dw = getDataWeeks();
   if (dw.length === 0) {
     if (charts.deptAvg) { charts.deptAvg.destroy(); charts.deptAvg = null; }
