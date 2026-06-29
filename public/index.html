@@ -737,8 +737,15 @@ function getDataWeeks() {
   return WEEKS.filter(weekHasData);
 }
 function getLatestWeekWithData() {
-  const dw = getDataWeeks();
-  return dw.length > 0 ? dw[dw.length - 1] : WEEKS[0];
+  // Require at least 3 employees with entries to consider a week "has meaningful data"
+  // This prevents auto-selecting a barely-started week that shows mostly empty charts
+  const meaningful = WEEKS.filter(w => {
+    const d = TS[w];
+    return d && Object.keys(d).filter(e => {
+      return CATS.reduce((s, c) => s + (d[e]?.[c] || 0), 0) > 0;
+    }).length >= 3;
+  });
+  return meaningful.length > 0 ? meaningful[meaningful.length - 1] : WEEKS[0];
 }
 function getEmptyStateHTML(msg) {
   return '<div style="text-align:center;padding:40px 24px;color:var(--text3)"><div style="font-size:28px;margin-bottom:8px">&#128202;</div><div style="font-size:13px;font-weight:600">' + (msg || '本週尚無數據') + '</div><div style="font-size:11px;margin-top:4px;opacity:.7">請等待員工填寫工時或執行數據同步</div></div>';
@@ -902,6 +909,7 @@ function renderWeeklyTrend() {
   const dw = getDataWeeks();
   if (dw.length === 0) {
     wrap.innerHTML = getEmptyStateHTML('尚無週趨勢數據');
+    document.getElementById('trendBadge').textContent = currentWeek;
     return;
   }
 
@@ -919,7 +927,10 @@ function renderWeeklyTrend() {
     data: dw.map(w => empTotal(w, emp)),
     borderColor: CAT_COLORS[i % CAT_COLORS.length],
     backgroundColor: CAT_COLORS[i % CAT_COLORS.length] + '20',
-    borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, tension: .4, fill: false
+    borderWidth: 2, pointRadius: dw.map(w => w === currentWeek ? 7 : 4),
+    pointHoverRadius: 8, pointBorderWidth: dw.map(w => w === currentWeek ? 3 : 0),
+    pointBorderColor: dw.map(w => w === currentWeek ? '#fff' : 'transparent'),
+    tension: .4, fill: false
   }));
 
   charts.weeklyTrend = new Chart(ctx, {
@@ -934,7 +945,7 @@ function renderWeeklyTrend() {
       }
     }
   });
-  document.getElementById('trendBadge').textContent = dw[0] + '–' + dw[dw.length - 1];
+  document.getElementById('trendBadge').textContent = currentWeek + ' ' + (WEEK_DATES[currentWeek] || '');
 }
 
 function renderCatDonut() {
@@ -2730,10 +2741,13 @@ async function fetchAndMergeData() {
         Object.assign(WEEK_DATES, json.weekDates);
       }
 
-      // Set current week to latest available with data
-      const weeksWithData = WEEKS.filter(w => TS[w] && Object.keys(TS[w]).length > 0);
-      if (weeksWithData.length > 0) {
-        currentWeek = weeksWithData[weeksWithData.length - 1];
+      // Set current week to latest available with meaningful data (3+ employees)
+      const meaningfulWeeks = WEEKS.filter(w => {
+        const d = TS[w];
+        return d && Object.keys(d).filter(e => CATS.reduce((s, c) => s + (d[e]?.[c] || 0), 0) > 0).length >= 3;
+      });
+      if (meaningfulWeeks.length > 0) {
+        currentWeek = meaningfulWeeks[meaningfulWeeks.length - 1];
       }
 
       // Update sync status
@@ -2891,6 +2905,6 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
 }
 </script>
-<div style="position:fixed;bottom:4px;right:8px;font-size:9px;color:#5E6E8580;font-family:monospace;pointer-events:none;z-index:9999">v2026-06-29-fix</div>
+<div style="position:fixed;bottom:4px;right:8px;font-size:9px;color:#5E6E8580;font-family:monospace;pointer-events:none;z-index:9999">v2026-06-29-sync</div>
 </body>
 </html>
