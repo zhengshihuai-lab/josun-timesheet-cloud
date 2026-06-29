@@ -981,8 +981,10 @@ function renderWeeklyTrend() {
 }
 
 function renderCatDonut() {
-  const wrap = document.getElementById('catDonut').parentElement;
-  if (charts.catDonut) charts.catDonut.destroy();
+  const canvas = document.getElementById('catDonut');
+  const wrap = canvas ? canvas.parentElement : document.querySelector('#catBadge').parentElement.querySelector('div[style*="180px"]');
+  if (!wrap) return;
+  if (charts.catDonut) { charts.catDonut.destroy(); charts.catDonut = null; }
 
   if (!weekHasData(currentWeek)) {
     wrap.innerHTML = getEmptyStateHTML('本週尚無任務分類數據');
