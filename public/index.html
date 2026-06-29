@@ -1916,6 +1916,7 @@ function generateSuggestions() {
 
   // 1. Workload imbalance
   const totals = activeEmps.map(e => ({ name: e, hrs: empTotal(lastWeek, e) }));
+  if (totals.length === 0) return suggestions;
   const maxEmp = totals.reduce((a, b) => a.hrs > b.hrs ? a : b);
   const minEmp = totals.reduce((a, b) => a.hrs < b.hrs ? a : b);
   if (maxEmp.hrs - minEmp.hrs > 20) {
