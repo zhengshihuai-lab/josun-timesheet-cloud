@@ -1,8 +1,12 @@
 <!DOCTYPE html>
+<!-- build: 2026-06-29v2 phantom-data-fix -->
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>JOSUN 工時智慧分析平台</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -719,7 +723,11 @@ function setDepartment(dept) {
 // ===== RENDER =====
 function renderWeekSelector() {
   const c = document.getElementById('weekSelector');
-  c.innerHTML = WEEKS.map(w => `<button class="week-btn${w===currentWeek?' active':''}" onclick="switchWeek('${w}')">${w} <span style="opacity:.6;font-weight:400;font-size:10px">${WEEK_DATES[w]}</span></button>`).join('');
+  c.innerHTML = WEEKS.map(w => {
+    const hasData = weekHasData(w);
+    const dot = hasData ? '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-left:4px;vertical-align:middle"></span>' : '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--text3);margin-left:4px;vertical-align:middle;opacity:.4"></span>';
+    return `<button class="week-btn${w===currentWeek?' active':''}" style="${!hasData?'opacity:.5':''}" onclick="switchWeek('${w}')">${w}${dot} <span style="opacity:.6;font-weight:400;font-size:10px">${WEEK_DATES[w]||''}</span></button>`;
+  }).join('');
 }
 
 function switchWeek(w) {
