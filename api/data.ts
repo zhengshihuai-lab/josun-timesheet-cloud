@@ -24,6 +24,23 @@ interface SupabaseTimesheet {
   lastUpdated: string | null;
 }
 
+async function fetchAllRows<T>(url: string, headers: Record<string, string>): Promise<T[]> {
+  const allRows: T[] = [];
+  let offset = 0;
+  const batchSize = 1000;
+  while (true) {
+    const resp = await fetch(url, {
+      headers: { ...headers, 'Range': `${offset}-${offset + batchSize - 1}` },
+    });
+    if (!resp.ok) break;
+    const rows = await resp.json() as T[];
+    allRows.push(...rows);
+    if (rows.length < batchSize) break;
+    offset += batchSize;
+  }
+  return allRows;
+}
+
 async function readFromSupabase(): Promise<SupabaseTimesheet | null> {
   const url = config.supabase.url;
   const key = config.supabase.key;
@@ -35,21 +52,17 @@ async function readFromSupabase(): Promise<SupabaseTimesheet | null> {
   };
 
   try {
-    // Fetch all weekly records
-    const weeklyResp = await fetch(
+    // Fetch all weekly records (paginated to bypass 1000-row limit)
+    const weeklyRows = await fetchAllRows<{ week: string; employee: string; category: string; hours: number }>(
       `${url}/rest/v1/timesheet_weekly?select=week,employee,category,hours&order=week,employee`,
-      { headers }
+      headers
     );
-    if (!weeklyResp.ok) return null;
-    const weeklyRows = await weeklyResp.json() as Array<{ week: string; employee: string; category: string; hours: number }>;
 
-    // Fetch all daily records
-    const dailyResp = await fetch(
+    // Fetch all daily records (paginated)
+    const dailyRows = await fetchAllRows<{ week: string; employee: string; day: string; hours: number }>(
       `${url}/rest/v1/timesheet_daily?select=week,employee,day,hours&order=week,employee`,
-      { headers }
+      headers
     );
-    if (!dailyResp.ok) return null;
-    const dailyRows = await dailyResp.json() as Array<{ week: string; employee: string; day: string; hours: number }>;
 
     // Fetch metadata
     const metaResp = await fetch(
