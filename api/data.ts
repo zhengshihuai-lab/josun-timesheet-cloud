@@ -41,7 +41,7 @@ async function readFromSupabase(): Promise<SupabaseTimesheet | null> {
       { headers }
     );
     if (!weeklyResp.ok) return null;
-    const weeklyRows: Array<{ week: string; employee: string; category: string; hours: number }> = await weeklyResp.json();
+    const weeklyRows = await weeklyResp.json() as Array<{ week: string; employee: string; category: string; hours: number }>;
 
     // Fetch all daily records
     const dailyResp = await fetch(
@@ -49,14 +49,14 @@ async function readFromSupabase(): Promise<SupabaseTimesheet | null> {
       { headers }
     );
     if (!dailyResp.ok) return null;
-    const dailyRows: Array<{ week: string; employee: string; day: string; hours: number }> = await dailyResp.json();
+    const dailyRows = await dailyResp.json() as Array<{ week: string; employee: string; day: string; hours: number }>;
 
     // Fetch metadata
     const metaResp = await fetch(
       `${url}/rest/v1/timesheet_meta?select=key,value`,
       { headers }
     );
-    const metaRows: Array<{ key: string; value: any }> = metaResp.ok ? await metaResp.json() : [];
+    const metaRows = metaResp.ok ? await metaResp.json() as Array<{ key: string; value: any }> : [];
     const meta: Record<string, any> = {};
     metaRows.forEach(r => { meta[r.key] = r.value; });
 

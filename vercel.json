@@ -34,7 +34,7 @@
   "crons": [
     {
       "path": "/api/sync-live",
-      "schedule": "0 1,3,5,7,9,11 * * 1-5"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/refresh",
