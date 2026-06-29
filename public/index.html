@@ -334,7 +334,7 @@ body{font-family:'DM Sans','Noto Sans TC',sans-serif;background:var(--bg);color:
               <div class="card-title"><div class="dot" style="background:var(--josun)"></div>員工工時排行</div>
               <div class="card-badge" id="rankBadge">本週</div>
             </div>
-            <div class="card-body"><div class="chart-wrap short"><canvas id="empBarChart"></canvas></div></div>
+            <div class="card-body"><div class="chart-wrap short" id="empBarContainer"><canvas id="empBarChart"></canvas></div></div>
           </div>
         </div>
 
@@ -971,28 +971,57 @@ function renderRisks() {
 }
 
 function renderEmpBar() {
+  const container = document.getElementById('empBarContainer');
+  const canvas = document.getElementById('empBarChart');
+
+  // Guard: empty state when no data
+  const empsWithHours = getActiveEmployees()
+    .map(e => ({ name: e, total: empTotal(currentWeek, e) }))
+    .filter(e => e.total > 0)
+    .sort((a, b) => b.total - a.total); // Sort descending for ranking
+
+  if (empsWithHours.length === 0) {
+    if (charts.empBar) { charts.empBar.destroy(); charts.empBar = null; }
+    container.innerHTML = getEmptyStateHTML('本週尚無員工工時數據');
+    document.getElementById('rankBadge').textContent = currentWeek;
+    return;
+  }
+
+  // Restore canvas if it was replaced by empty state
+  if (!container.querySelector('canvas')) {
+    container.innerHTML = '<canvas id="empBarChart"></canvas>';
+  }
+
   const ctx = document.getElementById('empBarChart').getContext('2d');
   if (charts.empBar) charts.empBar.destroy();
 
-  const emps = getActiveEmployees().filter(e => empTotal(currentWeek,e) > 0);
-  const data = emps.map(e => empTotal(currentWeek,e));
+  const labels = empsWithHours.map(e => (EMP_NAMES[e.name] || e.name) + '  ' + e.total + 'hr');
+  const data = empsWithHours.map(e => e.total);
+  const colors = data.map(v => v >= 40 ? '#19B08F90' : v >= 30 ? '#F0C04090' : '#F0606090');
 
   charts.empBar = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: emps,
-      datasets: [{ data, backgroundColor: data.map(v => v >= 40 ? '#19B08F80' : v >= 30 ? '#F0C04080' : '#F0606080'), borderRadius: 6, borderSkipped: false }]
+      labels,
+      datasets: [{ data, backgroundColor: colors, borderRadius: 6, borderSkipped: false }]
     },
     options: {
       indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) { return ctx.raw + ' 小時 / 週'; }
+          }
+        }
+      },
       scales: {
-        x: { grid: { color: '#232D4030' }, ticks: { color: '#5E6E85', font: { size: 10 } }, beginAtZero: true },
-        y: { grid: { display: false }, ticks: { color: '#95A3B8', font: { size: 10 } } }
+        x: { grid: { color: '#232D4030' }, ticks: { color: '#5E6E85', font: { size: 10 } }, beginAtZero: true, title: { display: true, text: '小時', color: '#5E6E85', font: { size: 10 } } },
+        y: { grid: { display: false }, ticks: { color: '#95A3B8', font: { size: 10 }, mirror: false } }
       }
     }
   });
-  document.getElementById('rankBadge').textContent = currentWeek;
+  document.getElementById('rankBadge').textContent = currentWeek + ' · ' + empsWithHours.length + '人';
 }
 
 function renderEmpGrid() {
