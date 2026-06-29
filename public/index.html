@@ -12,6 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700;900&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 :root{
   --josun:#19B08F;--josun-d:#0D6B58;--josun-l:#AAE6B4;
@@ -243,7 +244,7 @@ body{font-family:'DM Sans','Noto Sans TC',sans-serif;background:var(--bg);color:
           <button class="dept-btn" data-dept="AC" onclick="setDepartment('AC')">自動控制部</button>
         </div>
         <div class="week-selector" id="weekSelector"></div>
-        <div class="sync-status" id="syncStatusBox" title="資料同步狀態"><div class="sync-dot" id="syncDot"></div><span id="syncLabel">載入中...</span></div>
+        <div class="sync-status" id="syncStatusBox" title="資料同步狀態"><div class="sync-dot" id="syncDot"></div><span id="syncLabel">載入中...</span><button id="syncBtn" onclick="triggerSync()" style="margin-left:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:10px;padding:3px 10px;border-radius:12px;cursor:pointer;transition:all .2s" title="手動同步 WeCom → Supabase">⟳ 同步</button></div>
       </div>
     </div>
 
@@ -2557,6 +2558,77 @@ function renderQualityAnalysis() {
 
 // ── API Data Fetch & Merge ──
 // Fetches fresh data from /api/data and merges with embedded TS/HEATMAP.
+// ── Supabase Realtime ──
+let _sbClient = null;
+let _sbChannel = null;
+
+function initSupabaseRealtime(sbConfig) {
+  if (!sbConfig || !sbConfig.url || !sbConfig.key || !window.supabase) return;
+  if (_sbClient) return; // already initialized
+
+  try {
+    _sbClient = window.supabase.createClient(sbConfig.url, sbConfig.key);
+
+    _sbChannel = _sbClient
+      .channel('timesheet-changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'timesheet_weekly' },
+        () => { console.log('[Realtime] timesheet_weekly changed, refreshing...'); debouncedRefresh(); }
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'timesheet_daily' },
+        () => { console.log('[Realtime] timesheet_daily changed, refreshing...'); debouncedRefresh(); }
+      )
+      .subscribe((status) => {
+        console.log('[Realtime] Subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          const dot = document.getElementById('syncDot');
+          if (dot) dot.style.boxShadow = '0 0 6px var(--green)';
+        }
+      });
+
+    console.log('[Realtime] Supabase Realtime initialized');
+  } catch (e) {
+    console.warn('[Realtime] Failed to initialize:', e);
+  }
+}
+
+let _refreshTimer = null;
+function debouncedRefresh() {
+  if (_refreshTimer) clearTimeout(_refreshTimer);
+  _refreshTimer = setTimeout(() => {
+    fetchAndMergeData();
+    _refreshTimer = null;
+  }, 2000); // 2s debounce to batch rapid changes
+}
+
+async function triggerSync() {
+  const btn = document.getElementById('syncBtn');
+  const label = document.getElementById('syncLabel');
+  if (btn) { btn.disabled = true; btn.textContent = '⟳ 同步中...'; btn.style.opacity = '0.6'; }
+  label.textContent = '同步中...';
+
+  try {
+    // Trigger the sync-live endpoint (seeds from cache or reads WeCom)
+    const resp = await fetch('/api/sync-live', { method: 'GET' });
+    const json = await resp.json();
+
+    if (json.success || json.weeklyRows > 0) {
+      label.textContent = '已同步 (' + (json.weeklyRows || 0) + ' 筆)';
+      // Refresh dashboard data from Supabase
+      await fetchAndMergeData();
+    } else {
+      label.textContent = '同步失敗';
+      console.error('[Sync] Error:', json.error || json.errors);
+    }
+  } catch (e) {
+    label.textContent = '同步失敗';
+    console.error('[Sync] Network error:', e);
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = '⟳ 同步'; btn.style.opacity = '1'; }
+}
+
 // Falls back silently to embedded data if API unavailable.
 async function fetchAndMergeData() {
   const dot = document.getElementById('syncDot');
@@ -2615,14 +2687,20 @@ async function fetchAndMergeData() {
         if (diffH < 1) timeStr = '剛剛';
         else if (diffH < 24) timeStr = diffH + '小時前';
         else timeStr = Math.floor(diffH / 24) + '天前';
-        label.textContent = '同步於 ' + timeStr;
-        box.title = '最後同步: ' + d.toLocaleString('zh-TW');
+        const srcLabel = json.source === 'supabase' ? '⚡ ' : '';
+        label.textContent = srcLabel + '同步於 ' + timeStr;
+        box.title = '來源: ' + (json.source || 'unknown') + ' | 最後同步: ' + d.toLocaleString('zh-TW');
       } else {
-        label.textContent = '已連線';
+        label.textContent = json.source === 'supabase' ? '⚡ 已連線' : '已連線';
       }
       if (dot) dot.style.background = 'var(--green)';
 
-      console.log('[DataSync] Merged', Object.keys(json.timesheet).length, 'weeks from API');
+      console.log('[DataSync] Merged', Object.keys(json.timesheet).length, 'weeks from', json.source || 'API');
+
+      // Initialize Supabase Realtime if config is available
+      if (json.supabase && !_sbClient) {
+        initSupabaseRealtime(json.supabase);
+      }
     } else {
       // API returned no data — use embedded
       label.textContent = '離線模式';
@@ -2642,8 +2720,8 @@ async function fetchAndMergeData() {
   // Render everything with the final data
   renderAll();
 
-  // Auto-refresh every 30 minutes
-  setTimeout(fetchAndMergeData, 30 * 60 * 1000);
+  // Auto-refresh every 5 minutes (Supabase Realtime handles instant updates)
+  setTimeout(fetchAndMergeData, 5 * 60 * 1000);
 }
 
 function renderUtilizationPanel() {
@@ -2754,6 +2832,6 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
 }
 </script>
-<div style="position:fixed;bottom:4px;right:8px;font-size:9px;color:#5E6E8580;font-family:monospace;pointer-events:none;z-index:9999">v2026-06-29-fix</div>
+<div style="position:fixed;bottom:4px;right:8px;font-size:9px;color:#5E6E8580;font-family:monospace;pointer-events:none;z-index:9999">v2026-06-29-rt</div>
 </body>
 </html>

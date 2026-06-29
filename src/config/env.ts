@@ -39,10 +39,11 @@ export const config = {
   /** Sync execution mode. */
   syncMode: (process.env.SYNC_MODE || 'dry-run') as 'dry-run' | 'live',
 
-  /** Supabase storage (optional, for persisting sync state). */
+  /** Supabase storage (for real-time data sync). */
   supabase: {
     url: process.env.SUPABASE_URL || '',
     key: process.env.SUPABASE_ANON_KEY || '',
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   },
 
   /** Path to the cached JSON data file (fallback when API is unavailable). */

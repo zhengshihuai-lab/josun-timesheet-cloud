@@ -20,13 +20,22 @@
       "maxDuration": 120,
       "memory": 256
     },
+    "api/sync-live.ts": {
+      "maxDuration": 30,
+      "memory": 256,
+      "includeFiles": "data/**"
+    },
     "api/data.ts": {
-      "maxDuration": 10,
+      "maxDuration": 15,
       "memory": 128,
       "includeFiles": "data/**"
     }
   },
   "crons": [
+    {
+      "path": "/api/sync-live",
+      "schedule": "0 1,3,5,7,9,11 * * 1-5"
+    },
     {
       "path": "/api/refresh",
       "schedule": "0 9 * * 0"
@@ -45,6 +54,7 @@
     "SYNC_MODE": "dry-run",
     "SUPABASE_URL": "",
     "SUPABASE_ANON_KEY": "",
+    "SUPABASE_SERVICE_ROLE_KEY": "",
     "CACHE_FILE_PATH": "data/timesheet-cache.json"
   }
 }
