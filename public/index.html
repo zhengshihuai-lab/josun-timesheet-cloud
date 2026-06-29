@@ -798,45 +798,46 @@ function renderKPIs() {
   deltaEl.textContent = (delta >= 0 ? '+' : '') + delta + '%';
   deltaEl.className = 'tag ' + (delta >= 0 ? 'tag-green' : 'tag-red');
 
-  // Count quality issues for current dept/week — all 11 rules
+  // Count quality issues for current dept/week — per-employee severity (high+med+low = total flagged)
   const activeEmpsQ = getActiveEmployees().filter(e => empTotal(currentWeek, e) > 0);
   const weekIdxQ = WEEKS.indexOf(currentWeek);
   const prevWeekQ = weekIdxQ > 0 ? WEEKS[weekIdxQ - 1] : null;
-  let qualityIssues = 0;
+  let highCount = 0, medCount = 0, lowCount = 0;
   activeEmpsQ.forEach(emp => {
     const data = TS[currentWeek]?.[emp]; if (!data) return;
     const total = empTotal(currentWeek, emp);
     const activeCats = CATS.filter(c => (data[c] || 0) > 0);
     const hData = HEATMAP[currentWeek]?.[emp];
     const wDays = ['週一','週二','週三','週四','週五'];
-    // R1: single-task monopolizer
+    let isHigh = false, isMed = false, isLow = false;
+    // — High severity —
+    // R1: single-task monopolizer (≥80% in 1-2 categories)
     if (activeCats.length > 0 && total >= 20) {
       const maxCat = activeCats.reduce((a, b) => (data[a]||0) > (data[b]||0) ? a : b);
-      if ((data[maxCat]||0) / total >= 0.8 && activeCats.length <= 2) qualityIssues++;
+      if ((data[maxCat]||0) / total >= 0.8 && activeCats.length <= 2) isHigh = true;
     }
-    // R2: uniform daily hours
+    // R6: excessive weekly total (>50hr)
+    if (total > 50) isHigh = true;
+    // — Medium severity —
+    // R2: uniform daily hours (all days exactly 8hr)
     if (hData) {
       const hours = wDays.map(d => hData[d]||0).filter(h => h > 0);
-      if (hours.length >= 3 && hours.every(h => h === hours[0]) && hours[0] === 8) qualityIssues++;
+      if (hours.length >= 3 && hours.every(h => h === hours[0]) && hours[0] === 8) isMed = true;
     }
-    // R3: fragmentation
-    if (activeCats.length >= 6) qualityIssues++;
+    // R3: fragmentation (≥6 categories)
+    if (activeCats.length >= 6) isMed = true;
     // R4: zero hours mid-week
     if (hData) {
-      const hours = wDays.map(d => hData[d]||0);
-      if (hours.filter(h => h > 0).length >= 2 && hours.filter(h => h === 0).length >= 2 && total > 0) qualityIssues++;
+      const hrs = wDays.map(d => hData[d]||0);
+      if (hrs.filter(h => h > 0).length >= 2 && hrs.filter(h => h === 0).length >= 2 && total > 0) isMed = true;
     }
-    // R5: low total
-    if (total > 0 && total < 16 && !['實習生','王笑一','裴文'].includes(emp)) qualityIssues++;
-    // R6: high total
-    if (total > 50) qualityIssues++;
     // R7: daily single-task monopolizer
     if (hData && activeCats.length > 0 && total >= 7) {
       const dh = wDays.map(d => hData[d]||0);
       const wd = dh.filter(h => h > 0);
       if (wd.length >= 3) {
         const mc = activeCats.reduce((a, b) => (data[a]||0) > (data[b]||0) ? a : b);
-        if ((data[mc]||0) / (wd.length * 8) >= 0.85 && activeCats.length <= 2) qualityIssues++;
+        if ((data[mc]||0) / (wd.length * 8) >= 0.85 && activeCats.length <= 2) isMed = true;
       }
     }
     // R8: week-over-week identical pattern
@@ -851,41 +852,32 @@ function renderKPIs() {
         let ds=0;
         if (hData && ph) { let dp=0,d1=0,d2=0; wDays.forEach(d => { const a=hData[d]||0,b=ph[d]||0; dp+=a*b; d1+=a*a; d2+=b*b; }); ds=(d1>0&&d2>0)?dp/Math.sqrt(d1*d2):0; }
         const comb = hData && ph ? (cs*0.6+ds*0.4) : cs;
-        if (comb > 0.90) qualityIssues++;
+        if (comb > 0.90) isMed = true;
       }
     }
-    // R9: low daily category diversity
+    // — Low severity —
+    // R5: low total hours (<16hr, excluding part-time/interns)
+    if (total > 0 && total < 16 && !['實習生','王笑一','裴文'].includes(emp)) isLow = true;
+    // R9: low daily category diversity (1 cat, ≥16hr, ≥3 working days)
     if (activeCats.length === 1 && total >= 16 && hData) {
-      if (wDays.filter(d => (hData[d]||0) > 0).length >= 3) qualityIssues++;
+      if (wDays.filter(d => (hData[d]||0) > 0).length >= 3) isLow = true;
     }
     // R10: round number suspicion
     if (hData) {
       const wh = wDays.map(d => hData[d]||0).filter(h => h > 0);
-      if (wh.length >= 3 && wh.every(h => h%4===0||h%8===0) && [...new Set(wh)].length > 1) qualityIssues++;
+      if (wh.length >= 3 && wh.every(h => h%4===0||h%8===0) && [...new Set(wh)].length > 1) isLow = true;
     }
     // R11: weekend overtime not detailed
     if (hData) {
       const wt = (hData['週六']||0) + (hData['週日']||0);
-      if (wt > 0 && wt >= 4 && activeCats.length <= 2) qualityIssues++;
+      if (wt > 0 && wt >= 4 && activeCats.length <= 2) isLow = true;
     }
+    // Classify by worst severity (each employee counted once)
+    if (isHigh) highCount++;
+    else if (isMed) medCount++;
+    else if (isLow) lowCount++;
   });
-  // Count severity from dynamic quality issues only (no static RISKS)
-  let highCount = 0, medCount = 0, lowCount = 0;
-  activeEmpsQ.forEach(emp => {
-    const data = TS[currentWeek]?.[emp]; if (!data) return;
-    const total = empTotal(currentWeek, emp);
-    const activeCats = CATS.filter(c => (data[c] || 0) > 0);
-    const hData = HEATMAP[currentWeek]?.[emp];
-    const wDays = ['週一','週二','週三','週四','週五'];
-    if (activeCats.length > 0 && total >= 20) {
-      const maxCat = activeCats.reduce((a, b) => (data[a]||0) > (data[b]||0) ? a : b);
-      if ((data[maxCat]||0) / total >= 0.8 && activeCats.length <= 2) highCount++;
-    }
-    if (total > 50) highCount++;
-    if (hData) { const hours = wDays.map(d => hData[d]||0).filter(h => h > 0); if (hours.length >= 3 && hours.every(h => h === hours[0]) && hours[0] === 8) medCount++; }
-    if (activeCats.length >= 6) medCount++;
-    if (total > 0 && total < 16 && !['實習生','王笑一','裴文'].includes(emp)) lowCount++;
-  });
+  const qualityIssues = highCount + medCount + lowCount;
   document.getElementById('kpiRisks').innerHTML = qualityIssues + '<span class="kpi-unit">項</span>';
   document.getElementById('kpiRiskDetail').innerHTML = `<span class="tag tag-red">${highCount} 高</span> <span class="tag tag-yellow">${medCount} 中</span> <span class="tag tag-blue">${lowCount} 低</span>`;
 }
