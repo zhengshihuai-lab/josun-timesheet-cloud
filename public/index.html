@@ -239,7 +239,7 @@ body{font-family:'DM Sans','Noto Sans TC',sans-serif;background:var(--bg);color:
           <button class="dept-btn" data-dept="AC" onclick="setDepartment('AC')">自動控制部</button>
         </div>
         <div class="week-selector" id="weekSelector"></div>
-        <div class="sync-status"><div class="sync-dot"></div><span id="syncLabel">已就緒</span></div>
+        <div class="sync-status" id="syncStatusBox" title="資料同步狀態"><div class="sync-dot" id="syncDot"></div><span id="syncLabel">載入中...</span></div>
       </div>
     </div>
 
@@ -589,8 +589,8 @@ const EMPLOYEES = [
   // AC - 自動控制部 (9人)
   '王先沛','李志鴻','羅瑞來','曹永強','趙雅睿','閆麗鈴','王一書','劉彥儒','沈旋'
 ];
-const WEEKS = ['W19','W20','W21','W22','W23','W24','W25'];
-const WEEK_DATES = {W19:'5/5~5/9',W20:'5/12~5/16',W21:'5/19~5/23',W22:'5/26~5/30',W23:'6/2~6/8',W24:'6/9~6/15',W25:'6/16~6/22'};
+const WEEKS = ['W19','W20','W21','W22','W23','W24','W25','W26','W27'];
+const WEEK_DATES = {W19:'5/5~5/9',W20:'5/12~5/16',W21:'5/19~5/23',W22:'5/26~5/30',W23:'6/2~6/8',W24:'6/9~6/15',W25:'6/16~6/22',W26:'6/23~6/27',W27:'6/30~7/4'};
 
 const DEPARTMENTS = {
   all: { name: '全部部門', employees: EMPLOYEES, color: '#19B08F' },
@@ -664,9 +664,10 @@ const RISKS = [
 ];
 
 // ===== STATE =====
-let currentWeek = 'W25';
+let currentWeek = 'W26';
 let currentDept = 'all';
 let charts = {};
+let _lastUpdated = null; // Track API data freshness
 
 // ===== HELPERS =====
 function getActiveEmployees() {
@@ -2126,6 +2127,98 @@ function renderQualityAnalysis() {
 }
 
 // ===== INIT =====
+
+// ── API Data Fetch & Merge ──
+// Fetches fresh data from /api/data and merges with embedded TS/HEATMAP.
+// Falls back silently to embedded data if API unavailable.
+async function fetchAndMergeData() {
+  const dot = document.getElementById('syncDot');
+  const label = document.getElementById('syncLabel');
+  const box = document.getElementById('syncStatusBox');
+
+  try {
+    const resp = await fetch('/api/data?t=' + Date.now());
+    const json = await resp.json();
+
+    if (json.success && json.timesheet && Object.keys(json.timesheet).length > 0) {
+      // Merge timesheet data — API data overrides embedded data
+      for (const [week, weekData] of Object.entries(json.timesheet)) {
+        if (!TS[week]) TS[week] = {};
+        for (const [emp, catData] of Object.entries(weekData)) {
+          TS[week][emp] = catData;
+        }
+      }
+
+      // Merge heatmap data
+      if (json.heatmap) {
+        for (const [week, weekData] of Object.entries(json.heatmap)) {
+          if (!HEATMAP[week]) HEATMAP[week] = {};
+          for (const [emp, dayData] of Object.entries(weekData)) {
+            HEATMAP[week][emp] = dayData;
+          }
+        }
+      }
+
+      // Update weeks list if API has new weeks
+      if (json.weeks && json.weeks.length > 0) {
+        json.weeks.forEach(w => {
+          if (!WEEKS.includes(w)) WEEKS.push(w);
+        });
+        WEEKS.sort();
+      }
+
+      // Update week dates
+      if (json.weekDates) {
+        Object.assign(WEEK_DATES, json.weekDates);
+      }
+
+      // Set current week to latest available with data
+      const weeksWithData = WEEKS.filter(w => TS[w] && Object.keys(TS[w]).length > 0);
+      if (weeksWithData.length > 0) {
+        currentWeek = weeksWithData[weeksWithData.length - 1];
+      }
+
+      // Update sync status
+      _lastUpdated = json.lastUpdated;
+      if (_lastUpdated) {
+        const d = new Date(_lastUpdated);
+        const now = new Date();
+        const diffH = Math.floor((now - d) / 3600000);
+        let timeStr;
+        if (diffH < 1) timeStr = '剛剛';
+        else if (diffH < 24) timeStr = diffH + '小時前';
+        else timeStr = Math.floor(diffH / 24) + '天前';
+        label.textContent = '同步於 ' + timeStr;
+        box.title = '最後同步: ' + d.toLocaleString('zh-TW');
+      } else {
+        label.textContent = '已連線';
+      }
+      if (dot) dot.style.background = 'var(--green)';
+
+      console.log('[DataSync] Merged', Object.keys(json.timesheet).length, 'weeks from API');
+    } else {
+      // API returned no data — use embedded
+      label.textContent = '離線模式';
+      if (dot) dot.style.background = 'var(--yellow)';
+      // Set current week to latest with embedded data
+      const weeksWithData = WEEKS.filter(w => TS[w] && Object.keys(TS[w]).length > 0);
+      if (weeksWithData.length > 0) currentWeek = weeksWithData[weeksWithData.length - 1];
+    }
+  } catch (e) {
+    console.warn('[DataSync] API unavailable, using embedded data:', e.message);
+    label.textContent = '離線模式';
+    if (dot) dot.style.background = 'var(--yellow)';
+    const weeksWithData = WEEKS.filter(w => TS[w] && Object.keys(TS[w]).length > 0);
+    if (weeksWithData.length > 0) currentWeek = weeksWithData[weeksWithData.length - 1];
+  }
+
+  // Render everything with the final data
+  renderAll();
+
+  // Auto-refresh every 30 minutes
+  setTimeout(fetchAndMergeData, 30 * 60 * 1000);
+}
+
 function renderAll() {
   renderWeekSelector();
   renderKPIs();
@@ -2143,7 +2236,10 @@ function renderAll() {
   renderCatTrend();
   renderTrends();
 }
+
+// Boot: render with embedded data immediately, then fetch fresh data
 renderAll();
+fetchAndMergeData();
 </script>
 </body>
 </html>

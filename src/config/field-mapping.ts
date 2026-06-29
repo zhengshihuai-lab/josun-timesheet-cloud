@@ -115,6 +115,8 @@ export const WEEK_DATE_MAP: Record<string, { start: string; end: string }> = {
   'W24': { start: '2025-06-09', end: '2025-06-13' },
   'W25': { start: '2025-06-16', end: '2025-06-20' },
   'W26': { start: '2025-06-23', end: '2025-06-27' },
+  'W27': { start: '2025-06-30', end: '2025-07-04' },
+  'W28': { start: '2025-07-07', end: '2025-07-11' },
 };
 
 /** Short labels for the dashboard. */
@@ -127,6 +129,8 @@ export const WEEK_LABEL_MAP: Record<string, string> = {
   'W24': '6/9~6/13',
   'W25': '6/16~6/20',
   'W26': '6/23~6/27',
+  'W27': '6/30~7/4',
+  'W28': '7/7~7/11',
 };
 
 /**
