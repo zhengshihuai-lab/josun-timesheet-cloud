@@ -12,7 +12,8 @@
     },
     "api/data.ts": {
       "maxDuration": 10,
-      "memory": 128
+      "memory": 128,
+      "includeFiles": "data/**"
     }
   },
   "crons": [

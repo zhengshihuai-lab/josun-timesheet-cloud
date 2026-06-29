@@ -17,15 +17,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
 
-  try {
-    const cachePath = resolve(
-      process.cwd(),
-      process.env.CACHE_FILE_PATH || 'data/timesheet-cache.json',
-    );
-    const raw = await readFile(cachePath, 'utf-8');
-    const cache = JSON.parse(raw);
+  // Try multiple path strategies for finding the cache file
+  const candidates = [
+    // Strategy 1: relative to this file (api/ → ../data/)
+    resolve(__dirname, '..', 'data', 'timesheet-cache.json'),
+    // Strategy 2: process.cwd() (Vercel project root)
+    resolve(process.cwd(), 'data', 'timesheet-cache.json'),
+    // Strategy 3: env variable override
+    process.env.CACHE_FILE_PATH ? resolve(process.cwd(), process.env.CACHE_FILE_PATH) : '',
+  ].filter(Boolean);
 
-    // Return full dataset
+  let cache: any = null;
+
+  for (const p of candidates) {
+    try {
+      const raw = await readFile(p, 'utf-8');
+      cache = JSON.parse(raw);
+      break;
+    } catch {
+      // Try next candidate
+    }
+  }
+
+  if (cache && cache.timesheet) {
     res.status(200).json({
       success: true,
       source: 'cache',
@@ -36,14 +50,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       heatmap: cache.heatmap || {},
       timestamp: new Date().toISOString(),
     });
-  } catch (error) {
-    console.error('[data] Error loading cache:', error);
-
-    // Return empty dataset — dashboard will use embedded fallback
+  } else {
+    console.error('[data] Cache file not found. Tried:', candidates);
     res.status(200).json({
       success: false,
       source: 'fallback',
-      error: error instanceof Error ? error.message : 'Cache unavailable',
+      error: 'Cache file not found',
       timesheet: {},
       heatmap: {},
       weeks: [],
