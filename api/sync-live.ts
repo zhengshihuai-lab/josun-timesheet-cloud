@@ -30,36 +30,68 @@ async function upsertToSupabase(payload: TimesheetPayload) {
     throw new Error('Supabase not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel env.');
   }
 
-  const headers = {
+  const authHeaders = {
     'apikey': key,
     'Authorization': `Bearer ${key}`,
     'Content-Type': 'application/json',
-    'Prefer': 'return=minimal,resolution=merge-duplicates',
   };
 
   let weeklyCount = 0;
   let dailyCount = 0;
   const errors: string[] = [];
 
-  // 1. Upsert timesheet_weekly
-  const weeklyRows: Array<{ week: string; employee: string; category: string; hours: number }> = [];
-  for (const [week, weekData] of Object.entries(payload.timesheet)) {
+  // Collect all weeks being synced (for targeted delete)
+  const allWeeks = new Set<string>([
+    ...Object.keys(payload.timesheet || {}),
+    ...Object.keys(payload.heatmap || {}),
+  ]);
+
+  // --- Phase 1: Delete existing rows for synced weeks (prevents 23505 unique violations) ---
+  if (allWeeks.size > 0) {
+    const weekFilter = allWeeks.size === 1
+      ? `week=eq.${[...allWeeks][0]}`
+      : `week=in.(${[...allWeeks].join(',')})`;
+
+    // Delete weekly
+    const delWeekly = await fetch(`${url}/rest/v1/timesheet_weekly?${weekFilter}`, {
+      method: 'DELETE',
+      headers: { ...authHeaders, 'Prefer': 'return=minimal' },
+    });
+    if (!delWeekly.ok) {
+      errors.push(`DELETE weekly: ${delWeekly.status} ${await delWeekly.text()}`);
+    }
+
+    // Delete daily
+    const delDaily = await fetch(`${url}/rest/v1/timesheet_daily?${weekFilter}`, {
+      method: 'DELETE',
+      headers: { ...authHeaders, 'Prefer': 'return=minimal' },
+    });
+    if (!delDaily.ok) {
+      errors.push(`DELETE daily: ${delDaily.status} ${await delDaily.text()}`);
+    }
+  }
+
+  // --- Phase 2: Build + deduplicate rows, then INSERT fresh ---
+  const BATCH = 500;
+
+  // 1. Insert timesheet_weekly (deduplicated by week+employee+category)
+  const weeklyMap = new Map<string, { week: string; employee: string; category: string; hours: number }>();
+  for (const [week, weekData] of Object.entries(payload.timesheet || {})) {
     for (const [emp, catData] of Object.entries(weekData)) {
       for (const [cat, hours] of Object.entries(catData)) {
         if (typeof hours === 'number' && hours >= 0) {
-          weeklyRows.push({ week, employee: emp, category: cat, hours });
+          weeklyMap.set(`${week}|${emp}|${cat}`, { week, employee: emp, category: cat, hours });
         }
       }
     }
   }
+  const weeklyRows = [...weeklyMap.values()];
 
-  // Upsert in batches of 500 to stay within Supabase payload limits
-  const BATCH = 500;
   for (let i = 0; i < weeklyRows.length; i += BATCH) {
     const batch = weeklyRows.slice(i, i + BATCH);
     const resp = await fetch(`${url}/rest/v1/timesheet_weekly`, {
       method: 'POST',
-      headers: { ...headers, 'Prefer': 'return=minimal,resolution=merge-duplicates' },
+      headers: { ...authHeaders, 'Prefer': 'return=minimal' },
       body: JSON.stringify(batch),
     });
     if (!resp.ok) {
@@ -70,23 +102,24 @@ async function upsertToSupabase(payload: TimesheetPayload) {
     }
   }
 
-  // 2. Upsert timesheet_daily
-  const dailyRows: Array<{ week: string; employee: string; day: string; hours: number }> = [];
+  // 2. Insert timesheet_daily (deduplicated by week+employee+day)
+  const dailyMap = new Map<string, { week: string; employee: string; day: string; hours: number }>();
   for (const [week, weekData] of Object.entries(payload.heatmap || {})) {
     for (const [emp, dayData] of Object.entries(weekData)) {
       for (const [day, hours] of Object.entries(dayData)) {
         if (typeof hours === 'number' && hours >= 0) {
-          dailyRows.push({ week, employee: emp, day, hours });
+          dailyMap.set(`${week}|${emp}|${day}`, { week, employee: emp, day, hours });
         }
       }
     }
   }
+  const dailyRows = [...dailyMap.values()];
 
   for (let i = 0; i < dailyRows.length; i += BATCH) {
     const batch = dailyRows.slice(i, i + BATCH);
     const resp = await fetch(`${url}/rest/v1/timesheet_daily`, {
       method: 'POST',
-      headers: { ...headers, 'Prefer': 'return=minimal,resolution=merge-duplicates' },
+      headers: { ...authHeaders, 'Prefer': 'return=minimal' },
       body: JSON.stringify(batch),
     });
     if (!resp.ok) {
@@ -97,16 +130,25 @@ async function upsertToSupabase(payload: TimesheetPayload) {
     }
   }
 
-  // 3. Update metadata
+  // 3. Update metadata (key is PK, so delete+insert works)
+  const metaKeys = ['last_updated', 'weeks', 'week_dates'];
+  const delMeta = await fetch(
+    `${url}/rest/v1/timesheet_meta?key=in.(${metaKeys.join(',')})`,
+    { method: 'DELETE', headers: { ...authHeaders, 'Prefer': 'return=minimal' } }
+  );
+  if (!delMeta.ok) {
+    errors.push(`DELETE meta: ${delMeta.status} ${await delMeta.text()}`);
+  }
+
   const metaRows = [
     { key: 'last_updated', value: { timestamp: payload.lastUpdated || new Date().toISOString() } },
-    { key: 'weeks', value: { list: payload.weeks || Object.keys(payload.timesheet) } },
+    { key: 'weeks', value: { list: payload.weeks || Object.keys(payload.timesheet || {}) } },
     { key: 'week_dates', value: { map: payload.weekDates || {} } },
   ];
 
   const metaResp = await fetch(`${url}/rest/v1/timesheet_meta`, {
     method: 'POST',
-    headers: { ...headers, 'Prefer': 'return=minimal,resolution=merge-duplicates' },
+    headers: { ...authHeaders, 'Prefer': 'return=minimal' },
     body: JSON.stringify(metaRows),
   });
   if (!metaResp.ok) {
