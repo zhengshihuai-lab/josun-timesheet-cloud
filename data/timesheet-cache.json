@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-09-10T10:04:25.000Z",
+  "lastUpdated": "2026-09-14T10:01:58.000Z",
   "weeks": [
     "W19",
     "W20",
@@ -19,7 +19,8 @@
     "W34",
     "W35",
     "W36",
-    "W37"
+    "W37",
+    "W38"
   ],
   "weekDates": {
     "W19": "5/5~5/9",
@@ -40,7 +41,8 @@
     "W34": "8/18~8/22",
     "W35": "8/25~8/29",
     "W36": "8/31~9/4",
-    "W37": "9/7~9/11"
+    "W37": "9/7~9/11",
+    "W38": "9/14~9/18"
   },
   "timesheet": {
     "W19": {
@@ -2774,5 +2776,5 @@
       }
     }
   },
-  "_syncNote": "2026-09-10 Plan B: WeCom MCP no get_records API. Browser check: 萌萌 latest=W28. New employees spotted: 王元康, 彭蝶."
+  "_syncNote": "2026-09-14 Plan B: WeCom MCP no get_records API. W38 added to weeks array. No new data records synced."
 }
