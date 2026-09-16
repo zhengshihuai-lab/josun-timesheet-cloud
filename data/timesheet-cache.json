@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-09-14T10:01:58.000Z",
+  "lastUpdated": "2026-09-16T10:01:51.000Z",
   "weeks": [
     "W19",
     "W20",
@@ -2776,5 +2776,5 @@
       }
     }
   },
-  "_syncNote": "2026-09-14 Plan B: WeCom MCP no get_records API. W38 added to weeks array. No new data records synced."
+  "_syncNote": "2026-09-16 Plan B: WeCom MCP authorization expired (errcode 850003). lastUpdated timestamp refreshed. No new data records synced. Action required: re-authorize WeCom MCP bot at https://open.work.weixin.qq.com/devtool/query?e=850003"
 }
